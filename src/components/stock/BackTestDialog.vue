@@ -86,7 +86,7 @@ const summaryOption = computed(() => {
   const len = dates.length
 
   const strategySeries = props.data.map(item => ({
-    name: item.strategy,
+    name: '[策]' + item.strategy,
     type: 'line',
     data: item.portfolioDailyRecordList.map(r => r.totalAsset / (item.startAsset ?? item.initialAsset)),
     smooth: true
@@ -106,13 +106,14 @@ const summaryOption = computed(() => {
         if (stockMap[p.code].base == null) {
           stockMap[p.code].base = p.price
         }
+        stockMap[p.code].name = p.name
         stockMap[p.code].list[idx] = p.price / stockMap[p.code].base
       })
     })
   })
 
   const stockSeries = Object.keys(stockMap).map(code => ({
-    name: code,
+    name: '[股]' + stockMap[code].name + '-' + code,
     type: 'line',
     data: stockMap[code].list,
     smooth: true,
@@ -133,21 +134,32 @@ const summaryOption = computed(() => {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'line' },
+
       formatter: params => {
-        const date = params[0]?.axisValue || ''
-        let html = `<b>${date}</b><br/>`
-        params.forEach(p => {
-          if (p.value != null) {
-            html += `${p.marker}${p.seriesName}: ${(p.value * 100).toFixed(2)}%<br/>`
-          }
+        if (!params || !params.length) return ''
+
+        /** ✅ 按 value 排序（从大到小） */
+        const sorted = [...params].sort((a, b) => {
+          const va = a.value ?? -Infinity
+          const vb = b.value ?? -Infinity
+          return vb - va
         })
+
+        let html = `<b>${sorted[0].axisValue}</b><br/>`
+
+        sorted.forEach(p => {
+          if (p.value == null) return
+
+          html += `${p.marker}${p.seriesName}: ${Number(p.value).toFixed(2)}<br/>`
+        })
+
         return html
       }
     },
 
     xAxis: { type: 'category', data: dates },
 
-    yAxis: [{ type: 'value', name: '收益 / 比率' }],
+    yAxis: [{ type: 'value', name: '收益率' }],
 
     series: [...strategySeries, ...stockSeries]
   }
@@ -163,8 +175,8 @@ const option = computed(() => {
   const cash = []
   const pos = []
 
-  const stockMap = {}
-  const len = r.portfolioDailyRecordList.length
+  const stockCodePriceMap = {}
+  const stockCodeNameMap = {}
 
   r.portfolioDailyRecordList.forEach((d, i) => {
     dates.push(d.date)
@@ -173,35 +185,31 @@ const option = computed(() => {
     pos.push(d.totalPositionValue)
 
     Object.values(d.positionMap || {}).forEach(p => {
-      if (!stockMap[p.code]) {
-        stockMap[p.code] = {
-          base: null,
-          list: new Array(len).fill(null)
-        }
+      if (!stockCodePriceMap[p.code]) {
+        stockCodePriceMap[p.code] = []
       }
-      if (stockMap[p.code].base == null) {
-        stockMap[p.code].base = p.price
-      }
-      stockMap[p.code].list[i] = p.price / stockMap[p.code].base
+      /** ✅ 直接用价格 */
+      stockCodePriceMap[p.code][i] = p.price
+      stockCodeNameMap[p.code] = p.name
     })
   })
 
-  const stockSeries = Object.keys(stockMap).map(code => ({
-    name: code,
+  /** 股票 series（绑定价格轴） */
+  const stockSeries = Object.keys(stockCodePriceMap).map(code => ({
+    name: '[股]' + stockCodeNameMap[code] + '-' + code,
     type: 'line',
-    data: stockMap[code].list,
+    data: stockCodePriceMap[code],
     smooth: true,
-    lineStyle: { opacity: 0.5 }
+    yAxisIndex: 1, // ✅ 关键：使用第二个Y轴
+    lineStyle: { opacity: 0.7 }
   }))
 
-  /** ✅ 默认全部显示 */
   const legendSelected = {
     总资产: true,
     现金: true,
     持仓: true
   }
-
-  Object.keys(stockMap).forEach(code => (legendSelected[code] = true))
+  Object.keys(stockCodePriceMap).forEach(code => (legendSelected[code] = true))
 
   return {
     legend: {
@@ -214,14 +222,48 @@ const option = computed(() => {
       axisPointer: { type: 'line' }
     },
 
-    xAxis: { type: 'category', data: dates },
+    xAxis: {
+      type: 'category',
+      data: dates
+    },
 
-    yAxis: [{ type: 'value', name: '资产 / 比率' }],
+    /** ✅ 双Y轴 */
+    yAxis: [
+      {
+        type: 'value',
+        name: '资产'
+      },
+      {
+        type: 'value',
+        position: 'right',
+
+        /** ✅ 完全隐藏右侧轴 */
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { show: false },
+        splitLine: { show: false }
+      }
+    ],
 
     series: [
-      { name: '总资产', type: 'line', data: total },
-      { name: '现金', type: 'line', data: cash },
-      { name: '持仓', type: 'line', data: pos },
+      {
+        name: '[信]总资产',
+        type: 'line',
+        data: total,
+        yAxisIndex: 0
+      },
+      {
+        name: '[信]现金',
+        type: 'line',
+        data: cash,
+        yAxisIndex: 0
+      },
+      {
+        name: '[信]持仓',
+        type: 'line',
+        data: pos,
+        yAxisIndex: 0
+      },
       ...stockSeries
     ]
   }
