@@ -177,6 +177,7 @@ const option = computed(() => {
 
   const stockCodePriceMap = {}
   const stockCodeNameMap = {}
+  const stockBasePriceMap = {}
 
   r.portfolioDailyRecordList.forEach((d, i) => {
     dates.push(d.date)
@@ -188,7 +189,12 @@ const option = computed(() => {
       if (!stockCodePriceMap[p.code]) {
         stockCodePriceMap[p.code] = []
       }
-      /** ✅ 直接用价格 */
+
+      /** ✅ 记录首日价格 */
+      if (stockBasePriceMap[p.code] == null) {
+        stockBasePriceMap[p.code] = p.price
+      }
+
       stockCodePriceMap[p.code][i] = p.price
       stockCodeNameMap[p.code] = p.name
     })
@@ -219,9 +225,45 @@ const option = computed(() => {
 
     tooltip: {
       trigger: 'axis',
-      axisPointer: { type: 'line' }
-    },
+      axisPointer: { type: 'line' },
 
+      formatter: params => {
+        if (!params || !params.length) return ''
+
+        /** ✅ 排序（按值降序） */
+        const sorted = [...params].sort((a, b) => {
+          const va = a.value ?? -Infinity
+          const vb = b.value ?? -Infinity
+          return vb - va
+        })
+
+        let html = `<b>${sorted[0].axisValue}</b><br/>`
+
+        sorted.forEach(p => {
+          if (p.value == null) return
+
+          const name = p.seriesName
+
+          /** ================= 股票 ================= */
+          if (name.startsWith('[股]')) {
+            const code = name.split('-').pop()
+            const base = stockBasePriceMap[code]
+
+            let rate = '-'
+            if (base && p.value) {
+              rate = ((p.value / base - 1) * 100).toFixed(2) + '%'
+            }
+
+            html += `${p.marker}${name}: ${Number(p.value).toFixed(2)} (${rate})<br/>`
+          } else {
+            /** ================= 资产 ================= */
+            html += `${p.marker}${name}: ${Number(p.value).toFixed(2)}<br/>`
+          }
+        })
+
+        return html
+      }
+    },
     xAxis: {
       type: 'category',
       data: dates
