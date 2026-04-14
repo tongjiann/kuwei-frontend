@@ -22,14 +22,6 @@
       <!-- ✅ 基础信息 -->
       <el-row :gutter="16" class="mb-4">
         <el-col :span="4">
-          <Card title="初始资金" :value="formatNumber(current.startAsset ?? current.initialAsset)" />
-        </el-col>
-
-        <el-col :span="4">
-          <Card title="结束资金" :value="formatNumber(current.endAsset ?? current.finalAsset)" />
-        </el-col>
-
-        <el-col :span="4">
           <Card title="收益率" :value="formatPercent(current.returnRate)" />
         </el-col>
 
@@ -320,6 +312,18 @@ function formatPercent(v) {
 function formatNumber(v) {
   if (v == null || isNaN(v)) return '-'
   return Number(v).toFixed(2)
+}
+</script>
+
+<script>
+export const Card = {
+  props: ['title', 'value'],
+  template: `
+    <div style="padding:12px;border-radius:10px;background:rgb( 90,156,248,0.2)">
+      <div style="font-size:12px;">{{ title }}</div>
+      <div style="font-size:18px;font-weight:bold">{{ value || '-' }}</div>
+    </div>
+  `
 }
 </script>
 
