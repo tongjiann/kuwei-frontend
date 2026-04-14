@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="visible" width="95%" top="5vh">
+  <el-dialog v-model="visible" width="95%" top="5vh" @opened="onDialogOpened">
     <template #header>
       <el-tabs v-model="activeIndex" :stretch="true">
         <el-tab-pane label="汇总" name="summary" />
@@ -14,33 +14,30 @@
 
     <!-- 汇总 -->
     <div v-if="activeIndex === 'summary'">
-      <v-chart :option="summaryOption" style="height: 520px" />
+      <v-chart ref="summaryChartRef" :option="summaryOption" style="height: 520px" autoresize />
     </div>
 
     <!-- 单策略 -->
     <div v-else>
-      <!-- ✅ 基础信息 -->
       <el-row :gutter="16" class="mb-4">
         <el-col :span="4">
           <Card title="收益率" :value="formatPercent(current.returnRate)" />
         </el-col>
-
         <el-col :span="4">
           <Card title="最大回撤" :value="formatPercent(current.maxDrawDown)" />
         </el-col>
-
         <el-col :span="4">
           <Card title="夏普率" :value="formatNumber(current.sharpeRatio)" />
         </el-col>
       </el-row>
 
-      <v-chart :option="option" style="height: 520px" />
+      <v-chart ref="detailChartRef" :option="option" style="height: 520px" autoresize />
     </div>
   </el-dialog>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import { ElDialog, ElTabs, ElTabPane, ElRow, ElCol } from 'element-plus'
 import VChart from 'vue-echarts'
 
@@ -52,6 +49,8 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const visible = ref(props.modelValue)
+const summaryChartRef = ref(null)
+const detailChartRef = ref(null)
 
 watch(
   () => props.modelValue,
@@ -59,13 +58,26 @@ watch(
 )
 watch(visible, v => emit('update:modelValue', v))
 
-/** ✅ tab 统一使用 string */
 const activeIndex = ref('summary')
 
-/** ✅ 核心修复：强制转 number */
+// dialog 动画结束后强制 resize，解决首次宽度异常
+function onDialogOpened() {
+  nextTick(() => {
+    summaryChartRef.value?.resize()
+    detailChartRef.value?.resize()
+  })
+}
+
+// 切换 tab 时也 resize，防止从汇总切到单策略时异常
+watch(activeIndex, () => {
+  nextTick(() => {
+    summaryChartRef.value?.resize()
+    detailChartRef.value?.resize()
+  })
+})
+
 const current = computed(() => {
   if (activeIndex.value === 'summary') return {}
-
   const idx = Number(activeIndex.value)
   return props.data?.[idx] || {}
 })
@@ -85,15 +97,11 @@ const summaryOption = computed(() => {
   }))
 
   const stockMap = {}
-
   props.data.forEach(item => {
     item.portfolioDailyRecordList.forEach((r, idx) => {
       Object.values(r.positionMap || {}).forEach(p => {
         if (!stockMap[p.code]) {
-          stockMap[p.code] = {
-            base: null,
-            list: new Array(len).fill(null)
-          }
+          stockMap[p.code] = { base: null, list: new Array(len).fill(null) }
         }
         if (stockMap[p.code].base == null) {
           stockMap[p.code].base = p.price
@@ -112,47 +120,28 @@ const summaryOption = computed(() => {
     lineStyle: { type: 'dashed', opacity: 0.5 }
   }))
 
-  /** ✅ 默认全部显示 */
   const legendSelected = {}
   props.data.forEach(item => (legendSelected[item.strategy] = true))
   Object.keys(stockMap).forEach(code => (legendSelected[code] = true))
 
   return {
-    legend: {
-      type: 'scroll',
-      selected: legendSelected
-    },
-
+    legend: { type: 'scroll', selected: legendSelected },
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'line' },
-
       formatter: params => {
-        if (!params || !params.length) return ''
-
-        /** ✅ 按 value 排序（从大到小） */
-        const sorted = [...params].sort((a, b) => {
-          const va = a.value ?? -Infinity
-          const vb = b.value ?? -Infinity
-          return vb - va
-        })
-
+        if (!params?.length) return ''
+        const sorted = [...params].sort((a, b) => (b.value ?? -Infinity) - (a.value ?? -Infinity))
         let html = `<b>${sorted[0].axisValue}</b><br/>`
-
         sorted.forEach(p => {
           if (p.value == null) return
-
           html += `${p.marker}${p.seriesName}: ${Number(p.value).toFixed(2)}<br/>`
         })
-
         return html
       }
     },
-
     xAxis: { type: 'category', data: dates },
-
     yAxis: [{ type: 'value', name: '收益率' }],
-
     series: [...strategySeries, ...stockSeries]
   }
 })
@@ -162,14 +151,13 @@ const option = computed(() => {
   const r = current.value
   if (!r?.portfolioDailyRecordList) return {}
 
-  const dates = []
-  const total = []
-  const cash = []
-  const pos = []
-
-  const stockCodePriceMap = {}
-  const stockCodeNameMap = {}
-  const stockBasePriceMap = {}
+  const dates = [],
+    total = [],
+    cash = [],
+    pos = []
+  const stockCodePriceMap = {},
+    stockCodeNameMap = {},
+    stockBasePriceMap = {}
 
   r.portfolioDailyRecordList.forEach((d, i) => {
     dates.push(d.date)
@@ -178,126 +166,65 @@ const option = computed(() => {
     pos.push(d.totalPositionValue)
 
     Object.values(d.positionMap || {}).forEach(p => {
-      if (!stockCodePriceMap[p.code]) {
-        stockCodePriceMap[p.code] = []
-      }
-
-      /** ✅ 记录首日价格 */
-      if (stockBasePriceMap[p.code] == null) {
-        stockBasePriceMap[p.code] = p.price
-      }
-
+      if (!stockCodePriceMap[p.code]) stockCodePriceMap[p.code] = []
+      if (stockBasePriceMap[p.code] == null) stockBasePriceMap[p.code] = p.price
       stockCodePriceMap[p.code][i] = p.price
       stockCodeNameMap[p.code] = p.name
     })
   })
 
-  /** 股票 series（绑定价格轴） */
   const stockSeries = Object.keys(stockCodePriceMap).map(code => ({
     name: '[股]' + stockCodeNameMap[code] + '-' + code,
     type: 'line',
     data: stockCodePriceMap[code],
     smooth: true,
-    yAxisIndex: 1, // ✅ 关键：使用第二个Y轴
+    yAxisIndex: 1,
     lineStyle: { opacity: 0.7 }
   }))
 
-  const legendSelected = {
-    总资产: true,
-    现金: true,
-    持仓: true
-  }
+  const legendSelected = { 总资产: true, 现金: true, 持仓: true }
   Object.keys(stockCodePriceMap).forEach(code => (legendSelected[code] = true))
 
   return {
-    legend: {
-      type: 'scroll',
-      selected: legendSelected
-    },
-
+    legend: { type: 'scroll', selected: legendSelected },
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'line' },
-
       formatter: params => {
-        if (!params || !params.length) return ''
-
-        /** ✅ 排序（按值降序） */
-        const sorted = [...params].sort((a, b) => {
-          const va = a.value ?? -Infinity
-          const vb = b.value ?? -Infinity
-          return vb - va
-        })
-
+        if (!params?.length) return ''
+        const sorted = [...params].sort((a, b) => (b.value ?? -Infinity) - (a.value ?? -Infinity))
         let html = `<b>${sorted[0].axisValue}</b><br/>`
-
         sorted.forEach(p => {
           if (p.value == null) return
-
           const name = p.seriesName
-
-          /** ================= 股票 ================= */
           if (name.startsWith('[股]')) {
             const code = name.split('-').pop()
             const base = stockBasePriceMap[code]
-
-            let rate = '-'
-            if (base && p.value) {
-              rate = ((p.value / base - 1) * 100).toFixed(2) + '%'
-            }
-
+            const rate = base && p.value ? ((p.value / base - 1) * 100).toFixed(2) + '%' : '-'
             html += `${p.marker}${name}: ${Number(p.value).toFixed(2)} (${rate})<br/>`
           } else {
-            /** ================= 资产 ================= */
             html += `${p.marker}${name}: ${Number(p.value).toFixed(2)}<br/>`
           }
         })
-
         return html
       }
     },
-    xAxis: {
-      type: 'category',
-      data: dates
-    },
-
-    /** ✅ 双Y轴 */
+    xAxis: { type: 'category', data: dates },
     yAxis: [
-      {
-        type: 'value',
-        name: '资产'
-      },
+      { type: 'value', name: '资产' },
       {
         type: 'value',
         position: 'right',
-
-        /** ✅ 完全隐藏右侧轴 */
         axisLine: { show: false },
         axisTick: { show: false },
         axisLabel: { show: false },
         splitLine: { show: false }
       }
     ],
-
     series: [
-      {
-        name: '[信]总资产',
-        type: 'line',
-        data: total,
-        yAxisIndex: 0
-      },
-      {
-        name: '[信]现金',
-        type: 'line',
-        data: cash,
-        yAxisIndex: 0
-      },
-      {
-        name: '[信]持仓',
-        type: 'line',
-        data: pos,
-        yAxisIndex: 0
-      },
+      { name: '[信]总资产', type: 'line', data: total, yAxisIndex: 0 },
+      { name: '[信]现金', type: 'line', data: cash, yAxisIndex: 0 },
+      { name: '[信]持仓', type: 'line', data: pos, yAxisIndex: 0 },
       ...stockSeries
     ]
   }
