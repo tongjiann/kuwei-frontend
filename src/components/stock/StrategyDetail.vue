@@ -12,6 +12,35 @@
   </el-row>
 
   <v-chart ref="chartRef" :option="option" style="height: 520px" autoresize />
+
+  <!-- 信号详情弹窗 -->
+  <el-dialog v-model="dialogVisible" title="信号详情" width="800px">
+    <div v-if="currentDetail">
+      <h4>信号列表</h4>
+      <el-table :data="currentDetail.signals" border>
+        <el-table-column prop="code" label="股票" />
+        <el-table-column label="方向">
+          <template #default="{ row }">
+            {{ row.sign === 0 ? '买' : '卖' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="price" label="价格" />
+        <el-table-column prop="strength" label="强度" />
+        <el-table-column prop="description" label="说明" />
+      </el-table>
+
+      <h4 style="margin-top: 20px">交易记录</h4>
+      <el-table :data="currentDetail.trades" border>
+        <el-table-column prop="code" label="股票" />
+        <el-table-column prop="action" label="操作" />
+        <el-table-column prop="price" label="价格" />
+        <el-table-column prop="quantity" label="数量" />
+        <el-table-column prop="amount" label="金额" />
+        <el-table-column prop="pnl" label="盈亏" />
+        <el-table-column prop="description" label="说明" />
+      </el-table>
+    </div>
+  </el-dialog>
 </template>
 
 <script setup>
@@ -24,25 +53,56 @@ const props = defineProps({
 
 const chartRef = ref(null)
 
+// ====== 弹窗相关 ======
+const dialogVisible = ref(false)
+const currentDetail = ref(null)
+
+// 用于点击查找
+let signalMap = {}
+
+// ====== 图表点击事件 ======
+function initChartClick() {
+  const chart = chartRef.value?.chart
+  if (!chart) return
+
+  chart.off('click')
+
+  chart.on('click', params => {
+    if (params.componentType === 'markPoint') {
+      const key = params.data.key
+      currentDetail.value = signalMap[key]
+      dialogVisible.value = true
+    }
+  })
+}
+
+// ====== 监听数据变化 ======
 watch(
   () => props.data,
   () => {
-    nextTick(() => chartRef.value?.resize())
+    nextTick(() => {
+      chartRef.value?.resize()
+      initChartClick()
+    })
   },
   { deep: true }
 )
 
+// ====== 核心 option ======
 const option = computed(() => {
   const r = props.data
   if (!r?.portfolioDailyRecordList) return {}
 
-  const dates = [],
-    total = [],
-    cash = [],
-    pos = []
+  const dates = []
+  const total = []
+  const cash = []
+  const pos = []
 
   const stockMap = {}
   const baseMap = {}
+
+  const signalPoints = []
+  signalMap = {}
 
   r.portfolioDailyRecordList.forEach((d, i) => {
     dates.push(d.date)
@@ -50,10 +110,43 @@ const option = computed(() => {
     cash.push(d.cash)
     pos.push(d.totalPositionValue)
 
+    // ===== 股票数据 =====
     Object.values(d.positionMap || {}).forEach(p => {
       if (!stockMap[p.code]) stockMap[p.code] = []
       if (baseMap[p.code] == null) baseMap[p.code] = p.price
       stockMap[p.code][i] = p.price
+    })
+
+    // ===== 信号处理 =====
+    const signals = d.signalList || []
+    signals.forEach((s, idx) => {
+      const key = `${d.date}_${i}_${idx}`
+
+      signalMap[key] = {
+        date: d.date,
+        signals: [s],
+        trades: d.tradeList || []
+      }
+      signalPoints.push({
+        name: s.sign === 0 ? 'B' : 'S',
+        coord: [d.date, d.totalAsset],
+        value: s.sign === 0 ? 'B' : 'S',
+        symbol: 'circle',
+        symbolSize: 14,
+        itemStyle: {
+          color: s.sign === 0 ? '#67C23A' : '#F56C6C',
+          borderColor: '#fff',
+          borderWidth: 1
+        },
+        label: {
+          show: true,
+          formatter: s.sign === 0 ? 'B' : 'S',
+          color: '#fff',
+          fontSize: 10,
+          fontWeight: 'bold'
+        },
+        key
+      })
     })
   })
 
@@ -74,7 +167,19 @@ const option = computed(() => {
     ],
     dataZoom: [{ type: 'inside' }, { type: 'slider' }],
     series: [
-      { name: '总资产', type: 'line', data: total },
+      {
+        name: '总资产',
+        type: 'line',
+        data: total,
+        markPoint: {
+          symbol: 'circle',
+          label: {
+            show: true,
+            formatter: '{c}'
+          },
+          data: signalPoints
+        }
+      },
       { name: '现金', type: 'line', data: cash },
       { name: '持仓', type: 'line', data: pos },
       ...stockSeries
@@ -90,5 +195,17 @@ function formatPercent(v) {
 function formatNumber(v) {
   if (v == null || isNaN(v)) return '-'
   return Number(v).toFixed(2)
+}
+</script>
+
+<script>
+export const Card = {
+  props: ['title', 'value'],
+  template: `
+    <div style="padding:12px;border-radius:10px;background:rgb( 90,156,248,0.2)">
+      <div style="font-size:12px;">{{ title }}</div>
+      <div style="font-size:18px;font-weight:bold">{{ value || '-' }}</div>
+    </div>
+  `
 }
 </script>
