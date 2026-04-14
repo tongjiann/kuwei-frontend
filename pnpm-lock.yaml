@@ -40,7 +40,7 @@ dependencies:
     specifier: ^0.3.2
     version: 0.3.7
   echarts:
-    specifier: ^5.5.1
+    specifier: ^5.6.0
     version: 5.6.0
   element-plus:
     specifier: 2.8.4
@@ -90,6 +90,9 @@ dependencies:
   vue-cropper:
     specifier: ^1.1.4
     version: 1.1.4
+  vue-echarts:
+    specifier: ^8.0.1
+    version: 8.0.1(echarts@5.6.0)(vue@3.5.32)
   vue-fuse:
     specifier: ^4.1.1
     version: 4.1.1(fuse.js@7.3.0)(vue@3.5.32)
@@ -5295,6 +5298,16 @@ packages:
         optional: true
     dependencies:
       vue: 3.5.32(typescript@5.4.5)
+
+  /vue-echarts@8.0.1(echarts@5.6.0)(vue@3.5.32):
+    resolution: {integrity: sha512-23rJTFLu1OUEGRWjJGmdGt8fP+8+ja1gVgzMYPIPaHWpXegcO1viIAaeu2H4QHESlVeHzUAHIxKXGrwjsyXAaA==}
+    peerDependencies:
+      echarts: ^6.0.0
+      vue: ^3.3.0
+    dependencies:
+      echarts: 5.6.0
+      vue: 3.5.32(typescript@5.4.5)
+    dev: false
 
   /vue-eslint-parser@9.4.3(eslint@8.57.1):
     resolution: {integrity: sha512-2rYRLWlIpaiN8xbPiDyXZXRgLGOtWxERV7ND5fFAv5qo1D2N9Fu9MNajBNc6o13lZ+24DAWCkQCvj4klgmcITg==}

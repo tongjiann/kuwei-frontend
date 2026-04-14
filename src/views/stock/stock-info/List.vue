@@ -10,18 +10,14 @@ import { checkPermission } from '@/utils/permission'
 import dayjs from 'dayjs'
 
 import { ref } from 'vue'
-import CandlestickChart from '@/components/CandlestickChart.vue'
+import CandlestickChart from '@/components/stock/CandlestickChart.vue'
+import BackTestDialog from '@/components/stock/BackTestDialog.vue'
 
 const klineData = ref([])
+const backTestResultList = ref([])
 const klineTitlePrefix = ref({})
 const chartVisible = ref(false)
-
-const visible = ref(false)
-
-// 整体返回
-const resultData = ref<any>({
-  data: []
-})
+const backTestDialogVisible = ref(false)
 
 const chartRef = ref()
 
@@ -145,8 +141,8 @@ const multiTest = async (dataStartTime: string, code?: string) => {
       startDateStr
     })
 
-    resultData.value = res
-    visible.value = true
+    backTestResultList.value = res.data
+    backTestDialogVisible.value = true
   } catch (e) {
     // 用户取消 or 请求失败
   }
@@ -187,6 +183,12 @@ const activated = () => {
 
     onSearch()
   })
+}
+
+function handleOpen() {
+  setTimeout(() => {
+    window.dispatchEvent(new Event('resize'))
+  }, 100)
 }
 
 router.currentRoute.value.meta.keepAlive ? onActivated(activated) : activated()
@@ -335,6 +337,8 @@ router.currentRoute.value.meta.keepAlive ? onActivated(activated) : activated()
   <el-dialog v-model="chartVisible" width="900px" destroy-on-close @opened="onDialogOpened">
     <CandlestickChart ref="chartRef" :data="klineData" :title-prefix="klineTitlePrefix" show-volume />
   </el-dialog>
+
+  <BackTestDialog v-model="backTestDialogVisible" :data="backTestResultList" @open="handleOpen" />
 </template>
 
 <style scoped lang="scss"></style>

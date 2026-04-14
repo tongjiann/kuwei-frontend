@@ -7,7 +7,7 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
-    CandlestickChart: typeof import('@/components/CandlestickChart.vue')['default']
+    CandlestickChart: typeof import('@/components/stock/CandlestickChart.vue')['default']
     Chart: typeof import('@/components/chart/index.vue')['default']
     DateRange: typeof import('@/components/date-range/index.vue')['default']
     DiInput: typeof import('@/components/di/Input.vue')['default']
@@ -98,7 +98,8 @@ declare module 'vue' {
     RichRead: typeof import('@/components/rich/Read.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
-    TableCommonWIdthList: typeof import('@/components/table/CommonWIdthList.vue')['default']
+    StockBackTestDialog: typeof import('@/components/stock/BackTestDialog.vue')['default']
+    StockCandlestickChart: typeof import('@/components/stock/CandlestickChart.vue')['default']
     Watermark: typeof import('@/components/watermark/index.vue')['default']
   }
   export interface ComponentCustomProperties {
