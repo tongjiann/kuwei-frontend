@@ -11,8 +11,7 @@
     </el-col>
   </el-row>
 
-  <v-chart ref="chartRef" :option="option" style="height: 520px" autoresize />
-
+  <v-chart ref="chartRef" :option="option" style="height: 520px" autoresize @finished="initChartClick" />
   <!-- 信号详情弹窗 -->
   <el-dialog v-model="dialogVisible" title="信号详情" width="800px">
     <div v-if="currentDetail">
