@@ -100,6 +100,8 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     StockBackTestDialog: typeof import('@/components/stock/BackTestDialog.vue')['default']
     StockCandlestickChart: typeof import('@/components/stock/CandlestickChart.vue')['default']
+    StockStrategyDetail: typeof import('@/components/stock/StrategyDetail.vue')['default']
+    StockSummaryChart: typeof import('@/components/stock/SummaryChart.vue')['default']
     Watermark: typeof import('@/components/watermark/index.vue')['default']
   }
   export interface ComponentCustomProperties {
