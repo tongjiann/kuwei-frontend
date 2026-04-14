@@ -7,7 +7,7 @@ interface FormItem {
 }
 
 const form: FormItem = reactive({
-  value: 'DIBOOT',
+  value: 'XIW',
   size: 100,
   foreground: '#000'
 })

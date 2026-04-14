@@ -39,7 +39,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { api } from '@/utils/request' // 你当前用的是 diboot 封装
+import { api } from '@/utils/request'
 
 const apiUrl = ref('')
 const method = ref<'get' | 'post'>('get')

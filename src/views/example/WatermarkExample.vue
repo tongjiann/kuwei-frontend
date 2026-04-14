@@ -11,7 +11,7 @@ const text = ref()
 const imageUrl = ref()
 const watermarkRef = ref()
 const createTextWatermark = () => {
-  text.value = 'Diboot'
+  text.value = 'Xiw'
   imageUrl.value = ''
   nextTick(() => watermarkRef.value.create())
 }

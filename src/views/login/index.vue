@@ -89,7 +89,7 @@ onMounted(() => {
 <template>
   <div v-loading="ssoLoading" :element-loading-text="i18n.t('login.loading')" class="content">
     <div class="form">
-      <h1 style="text-align: center">Diboot Admin UI</h1>
+      <h1 style="text-align: center">Kuwei</h1>
       <div v-if="enableI18n" style="text-align: right; margin-bottom: 5px">
         <el-dropdown
           @command="
