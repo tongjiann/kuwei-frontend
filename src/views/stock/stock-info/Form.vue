@@ -1,6 +1,6 @@
 <script setup lang="ts" name="StockInfo">
 import { Plus, Edit, Search, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
-import type { StockInfo } from './type'
+import type { StockInfo } from '#/stock/stock-info'
 import Detail from '@/views/stock/stock-info/Detail.vue'
 import Form from '@/views/stock/stock-info/Form.vue'
 

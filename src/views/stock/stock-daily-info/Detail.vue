@@ -1,5 +1,5 @@
 <script setup lang="ts">
-    import type {StockDailyInfo} from './type'
+    import type {StockDailyInfo} from '#/stock/stock-daily-info'
 
 
 
@@ -19,7 +19,7 @@
 
     const baseApi = '/stock/stock-daily-info'
 
-    
+
 
     const {loadData, loading, model} = useDetail<StockDailyInfo>(baseApi)
 

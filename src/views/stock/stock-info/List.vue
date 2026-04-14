@@ -1,6 +1,6 @@
 <script setup lang="ts" name="StockInfo">
 import { ArrowDown, ArrowUp, Edit, Plus, Search } from '@element-plus/icons-vue'
-import type { StockInfo } from './type'
+import type { StockInfo } from '#/stock/stock-info'
 import Detail from '@/views/stock/stock-info/Detail.vue'
 import Form from '@/views/stock/stock-info/Form.vue'
 import { apiMultiTest, apiSyncDailyInfo } from '@/api/stock/stock-common'
@@ -20,6 +20,8 @@ const chartVisible = ref(false)
 const backTestDialogVisible = ref(false)
 
 const chartRef = ref()
+
+const syncLoading = ref(false)
 
 const onDialogOpened = () => {
   // 👇 强制 resize（关键）
@@ -110,26 +112,37 @@ const closeDetailAndOpenForm = () => {
   openForm(dataId.value)
 }
 
-const syncDailyInfo = (stockId?: string) => {
-  apiSyncDailyInfo(stockId).then(() => {
-    ElMessage.success('同步成功')
-  })
+async function syncDailyInfo() {
+  if (syncLoading.value) return
+
+  syncLoading.value = true
+  try {
+    // 调你的接口
+    await apiSyncDailyInfo()
+
+    // 接口成功后刷新页面数据
+    await getList()
+  } catch (e) {
+    console.error('同步失败', e)
+  } finally {
+    syncLoading.value = false
+  }
 }
 
-const drawKLine = async (stockId: string, stockName: string) => {
+const drawKLine = async (stockId: string, stockName?: string) => {
   try {
     const response = await apiGetKLineDataByStockId(stockId)
     klineData.value = response.data
-    klineTitlePrefix.value = stockName
+    klineTitlePrefix.value = stockName ?? ''
     chartVisible.value = true
   } catch (error) {
     console.error('获取数据失败:', error)
   }
 }
 
-const multiTest = async (dataStartTime: string, code?: string) => {
+const multiTest = async (dataStartTime?: string, code?: string) => {
   try {
-    const { value } = await ElMessageBox.prompt('请选择日期', '提示', {
+    const { value } = await ElMessageBox.prompt('请选择回测起始日期', '提示', {
       inputType: 'date',
       inputValue: dataStartTime
     })
@@ -200,8 +213,7 @@ router.currentRoute.value.meta.keepAlive ? onActivated(activated) : activated()
       <el-button v-has-permission="'create'" type="primary" :icon="Plus" @click="handleOperation('create')">
         新建
       </el-button>
-      <el-button type="primary" @click="syncDailyInfo()"> 同步每日信息</el-button>
-
+      <el-button type="primary" :loading="syncLoading" @click="syncDailyInfo"> 同步每日信息</el-button>
       <el-space>
         <span class="search">
           <el-input v-model="queryParam.code" placeholder="编码" clearable @change="onSearch" />
@@ -218,7 +230,7 @@ router.currentRoute.value.meta.keepAlive ? onActivated(activated) : activated()
 
     <el-form v-show="searchState" label-width="80px" class="list-search" @submit.prevent>
       <el-row :gutter="18">
-        <el-col :md="24 / 1" :sm="24">
+        <el-col :md="24" :sm="24">
           <el-form-item prop="name" label="名称">
             <el-input v-model="queryParam.name" clearable @change="onSearch" />
           </el-form-item>
@@ -258,7 +270,7 @@ router.currentRoute.value.meta.keepAlive ? onActivated(activated) : activated()
               详情
             </el-button>
 
-            <el-button @click="multiTest(row.dataStartTime, row.code)">多策略测试</el-button>
+            <el-button @click="multiTest(row.dataStartTime, row.code)">多策略回测</el-button>
 
             <el-button @click="drawKLine(row.id, row.name)">K线</el-button>
             <el-dropdown

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { StockInfo } from './type'
+import type { StockInfo } from '#/stock/stock-info'
 
 const baseApi = '/stock/stock-info'
 

@@ -15,8 +15,7 @@ const props = defineProps({
   },
   titlePrefix: {
     type: String,
-    required: true,
-    default: () => ''
+    default: ''
   },
   width: { type: String, default: '100%' },
   height: { type: String, default: '600px' },
