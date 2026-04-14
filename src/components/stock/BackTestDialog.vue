@@ -141,7 +141,21 @@ const summaryOption = computed(() => {
       }
     },
     xAxis: { type: 'category', data: dates },
-    yAxis: [{ type: 'value', name: '收益率' }],
+    yAxis: [{ type: 'value', name: '收益率', scale: true }],
+    dataZoom: [
+      {
+        type: 'inside', // 鼠标滚轮 / 触控板双指缩放
+        xAxisIndex: 0,
+        start: 0,
+        end: 100
+      },
+      {
+        type: 'slider', // 底部拖拽条，可视化选择区间
+        xAxisIndex: 0,
+        start: 0,
+        end: 100
+      }
+    ],
     series: [...strategySeries, ...stockSeries]
   }
 })
@@ -211,7 +225,7 @@ const option = computed(() => {
     },
     xAxis: { type: 'category', data: dates },
     yAxis: [
-      { type: 'value', name: '资产' },
+      { type: 'value', name: '资产', scale: true },
       {
         type: 'value',
         position: 'right',
@@ -219,6 +233,20 @@ const option = computed(() => {
         axisTick: { show: false },
         axisLabel: { show: false },
         splitLine: { show: false }
+      }
+    ],
+    dataZoom: [
+      {
+        type: 'inside', // 鼠标滚轮 / 触控板双指缩放
+        xAxisIndex: 0,
+        start: 0,
+        end: 100
+      },
+      {
+        type: 'slider', // 底部拖拽条，可视化选择区间
+        xAxisIndex: 0,
+        start: 0,
+        end: 100
       }
     ],
     series: [
