@@ -227,12 +227,7 @@ defineExpose({
       </el-col>
       <el-col v-if="!invisibleProps?.includes('relatedAccountId')" :span="12">
         <el-form-item prop="relatedAccountId" label="创建者">
-          <el-select
-            v-model="model.relatedAccountId"
-            :disabled="disabledProps?.includes('relatedAccountId')"
-            filterable
-            clearable
-          >
+          <el-select v-model="model.relatedAccountId" disabled filterable clearable>
             <el-option v-for="item in relatedData.relatedAccountIdOptions" :key="item.value" v-bind="item">
               <div v-if="typeof item.ext === 'string'" class="option">
                 {{ item.label }}

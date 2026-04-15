@@ -5,8 +5,6 @@ import ExcelExport from '@/components/excel/Export.vue'
 import Detail from '@/views/detector/detector-template-parameter/Detail.vue'
 import Form from '@/views/detector/detector-template-parameter/Form.vue'
 
-import { ElTable } from 'element-plus'
-
 import { checkPermission } from '@/utils/permission'
 
 const baseApi = '/detector/detector-template-parameter'

@@ -4,8 +4,6 @@ import type { DetectorTemplate } from './type'
 import Detail from '@/views/detector/detector-template/Detail.vue'
 import Form from '@/views/detector/detector-template/Form.vue'
 
-import { ElTable } from 'element-plus'
-
 import { checkPermission } from '@/utils/permission'
 
 const baseApi = '/detector/detector-template'

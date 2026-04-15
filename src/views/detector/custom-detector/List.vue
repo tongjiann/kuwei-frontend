@@ -5,8 +5,6 @@ import ExcelExport from '@/components/excel/Export.vue'
 import Detail from '@/views/detector/custom-detector/Detail.vue'
 import Form from '@/views/detector/custom-detector/Form.vue'
 
-import { ElTable } from 'element-plus'
-
 import { checkPermission } from '@/utils/permission'
 
 const baseApi = '/detector/custom-detector'
@@ -204,10 +202,10 @@ router.currentRoute.value.meta.keepAlive ? onActivated(activated) : activated()
       @sort-change="sortChange"
     >
       <el-table-column type="selection" width="55" fixed />
+      <el-table-column type="index" width="50" fixed label="#" />
       <el-table-column label="模板" prop="templateIdLabel" show-overflow-tooltip />
-      <el-table-column label="配置参数" show-overflow-tooltip />
+      <el-table-column label="配置参数" prop="configParam" show-overflow-tooltip />
       <el-table-column label="展示名称" prop="displayName" show-overflow-tooltip />
-      <el-table-column label="创建者" prop="relatedAccountIdLabel" show-overflow-tooltip />
       <el-table-column label="是否启用" prop="isEnableLabel" show-overflow-tooltip>
         <template #default="{ row }: { row: CustomDetector }">
           <el-tag
