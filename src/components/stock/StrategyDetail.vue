@@ -1,5 +1,5 @@
 <template>
-  <el-row :gutter="16" class="mb-4">
+  <el-row :gutter="16" class="mb-4" justify="center">
     <el-col :span="4">
       <Card title="收益率" :value="formatPercent(data.returnRate)" />
     </el-col>
@@ -8,6 +8,12 @@
     </el-col>
     <el-col :span="4">
       <Card title="夏普率" :value="formatNumber(data.sharpeRatio)" />
+    </el-col>
+    <el-col :span="4">
+      <Card title="总信号数" :value="data.signalSize" />
+    </el-col>
+    <el-col :span="4">
+      <Card title="总交易数" :value="data.tradeDetailSize" />
     </el-col>
   </el-row>
 

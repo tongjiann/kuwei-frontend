@@ -1,14 +1,20 @@
 import Decimal from 'decimal.js'
+import type { PortfolioDailyRecord } from '#/stock/portfolio-daily-record'
 
-export interface PortfolioDailyRecord {
-  date?: string // LocalDate -> ISO string?: 'YYYY-MM-DD'
+export interface PortfolioBackTestResult {
+  startAsset: Decimal
+  endAsset: Decimal
+  returnRate: Decimal
+  maxDrawDown: Decimal
+  sharpeRatio: Decimal
+  annualizedReturnRate: Decimal
 
-  cash?: Decimal
-  totalAsset?: Decimal
-  totalPositionValue?: Decimal
+  strategy: string
 
-  positionMap?: Record<string, PositionInfo>
-
-  tradeList?: TradeDetail[]
+  // 后端忽略字段
   signalList?: Signal[]
+  signalSize: int
+  tradeDetailList?: TradeDetail[]
+  tradeDetailSize: int
+  portfolioDailyRecordList?: PortfolioDailyRecord[]
 }
