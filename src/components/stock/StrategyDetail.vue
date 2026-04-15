@@ -12,6 +12,7 @@
   </el-row>
 
   <v-chart ref="chartRef" :option="option" style="height: 520px" autoresize @finished="initChartClick" />
+
   <!-- 信号详情弹窗 -->
   <el-dialog v-model="dialogVisible" title="信号详情" width="800px">
     <div v-if="currentDetail">
@@ -116,37 +117,48 @@ const option = computed(() => {
       stockMap[p.code][i] = p.price
     })
 
-    // ===== 信号处理 =====
+    // ===== 信号处理（已修改）=====
     const signals = d.signalList || []
-    signals.forEach((s, idx) => {
-      const key = `${d.date}_${i}_${idx}`
+    if (signals.length > 0) {
+      const key = `${d.date}_${i}`
 
+      const trades = d.tradeList || []
+      const hasTrade = trades.length > 0
+
+      // 合并当天信号
       signalMap[key] = {
         date: d.date,
-        signals: [s],
-        trades: d.tradeList || []
+        signals: signals,
+        trades: trades
       }
+
+      // 判断买卖
+      const hasBuy = signals.some(s => s.sign === 0)
+      const label = hasBuy ? 'B' : 'S'
+
       signalPoints.push({
-        name: s.sign === 0 ? 'B' : 'S',
+        name: label,
         coord: [d.date, d.totalAsset],
-        value: s.sign === 0 ? 'B' : 'S',
+        value: label,
+
         symbol: 'circle',
         symbolSize: 14,
         itemStyle: {
-          color: s.sign === 0 ? '#67C23A' : '#F56C6C',
-          borderColor: '#fff',
-          borderWidth: 1
+          color: hasTrade ? (hasBuy ? '#67C23A' : '#F56C6C') : '#ffffff',
+
+          borderColor: hasBuy ? '#67C23A' : '#F56C6C',
+          borderWidth: 2
         },
         label: {
           show: true,
-          formatter: s.sign === 0 ? 'B' : 'S',
-          color: '#fff',
+          formatter: label,
+          color: hasTrade ? '#fff' : hasBuy ? '#67C23A' : '#F56C6C',
           fontSize: 10,
           fontWeight: 'bold'
         },
         key
       })
-    })
+    }
   })
 
   const stockSeries = Object.keys(stockMap).map(code => ({
@@ -172,10 +184,6 @@ const option = computed(() => {
         data: total,
         markPoint: {
           symbol: 'circle',
-          label: {
-            show: true,
-            formatter: '{c}'
-          },
           data: signalPoints
         }
       },
