@@ -25,7 +25,11 @@
           </template>
         </el-table-column>
         <el-table-column prop="price" label="价格" />
-        <el-table-column prop="strength" label="强度" />
+        <el-table-column prop="strength" label="强度">
+          <template #default="{ row }">
+            {{ formatPercent(row.strength) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="description" label="说明" />
       </el-table>
 
@@ -33,10 +37,23 @@
       <el-table :data="currentDetail.trades" border>
         <el-table-column prop="code" label="股票" />
         <el-table-column prop="action" label="操作" />
-        <el-table-column prop="price" label="价格" />
+        <el-table-column prop="price" label="价格">
+          <template #default="{ row }">
+            {{ formatNumber(row.price) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="quantity" label="数量" />
-        <el-table-column prop="amount" label="金额" />
-        <el-table-column prop="pnl" label="盈亏" />
+
+        <el-table-column prop="amount" label="金额">
+          <template #default="{ row }">
+            {{ formatNumber(row.amount) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="pnl" label="盈亏">
+          <template #default="{ row }">
+            {{ formatNumber(row.pnl) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="description" label="说明" />
       </el-table>
     </div>
