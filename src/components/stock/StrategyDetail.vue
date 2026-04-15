@@ -22,6 +22,7 @@
   <!-- 信号详情弹窗 -->
   <el-dialog v-model="dialogVisible" title="信号详情" width="800px">
     <div v-if="currentDetail">
+      <h3>日期：{{ currentDetail.date }}</h3>
       <h4>信号列表</h4>
       <el-table :data="currentDetail.signals" border>
         <el-table-column prop="code" label="股票" />

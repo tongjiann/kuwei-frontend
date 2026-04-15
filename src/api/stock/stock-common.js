@@ -11,3 +11,7 @@ export function apiSyncDailyInfo(stockId) {
 export function apiMultiTest(params) {
   return api.get(baseUrl + '/multi-test', params)
 }
+
+export function apiInitStockInfo(params) {
+  return api.get(baseUrl + '/init-stock-info', params)
+}

@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, Edit, Plus, Search } from '@element-plus/icons-vue'
 import type { StockInfo } from '#/stock/stock-info'
 import Detail from '@/views/stock/stock-info/Detail.vue'
 import Form from '@/views/stock/stock-info/Form.vue'
-import { apiMultiTest, apiSyncDailyInfo } from '@/api/stock/stock-common'
+import { apiMultiTest, apiSyncDailyInfo, apiInitStockInfo } from '@/api/stock/stock-common'
 import { apiGetKLineDataByStockId } from '@/api/stock/stock-daily-info'
 
 import { checkPermission } from '@/utils/permission'
@@ -129,6 +129,43 @@ async function syncDailyInfo() {
   }
 }
 
+const addStockVisible = ref(false)
+
+const addStockForm = ref({
+  code: '',
+  name: ''
+})
+
+const addStockLoading = ref(false)
+const openAddStockDialog = () => {
+  addStockForm.value = {
+    code: '',
+    name: ''
+  }
+  addStockVisible.value = true
+}
+const submitAddStock = async () => {
+  if (!addStockForm.value.code || !addStockForm.value.name) {
+    ElMessage.warning('请输入编码和名称')
+    return
+  }
+
+  addStockLoading.value = true
+  try {
+    await apiInitStockInfo(addStockForm.value)
+
+    ElMessage.success('新增成功')
+    addStockVisible.value = false
+
+    // 刷新列表
+    await getList()
+  } catch (e) {
+    console.error(e)
+  } finally {
+    addStockLoading.value = false
+  }
+}
+
 const drawKLine = async (stockId: string, stockName?: string) => {
   try {
     const response = await apiGetKLineDataByStockId(stockId)
@@ -214,6 +251,7 @@ router.currentRoute.value.meta.keepAlive ? onActivated(activated) : activated()
         新建
       </el-button>
       <el-button type="primary" :loading="syncLoading" @click="syncDailyInfo"> 同步每日信息</el-button>
+      <el-button type="success" @click="openAddStockDialog"> 增加股票</el-button>
       <el-space>
         <span class="search">
           <el-input v-model="queryParam.code" placeholder="编码" clearable @change="onSearch" />
@@ -351,6 +389,23 @@ router.currentRoute.value.meta.keepAlive ? onActivated(activated) : activated()
   </el-dialog>
 
   <BackTestDialog v-model="backTestDialogVisible" :data="backTestResultList" @open="handleOpen" />
+
+  <el-dialog v-model="addStockVisible" title="新增股票" width="400px">
+    <el-form label-width="80px">
+      <el-form-item label="编码">
+        <el-input v-model="addStockForm.code" placeholder="请输入股票编码" />
+      </el-form-item>
+
+      <el-form-item label="名称">
+        <el-input v-model="addStockForm.name" placeholder="请输入股票名称" />
+      </el-form-item>
+    </el-form>
+
+    <template #footer>
+      <el-button @click="addStockVisible = false">取消</el-button>
+      <el-button type="primary" :loading="addStockLoading" @click="submitAddStock"> 确认 </el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped lang="scss"></style>
