@@ -40,7 +40,7 @@
   <v-chart ref="chartRef" :option="option" style="height: 520px" autoresize @finished="initChartClick" />
 
   <!-- 信号详情弹窗（支持聚合后的多日数据） -->
-  <el-dialog v-model="dialogVisible" title="信号详情" width="900px">
+  <el-dialog v-model="dialogVisible" title="信号详情" width="900px" align-center>
     <div v-if="currentDetail">
       <h3>
         {{
@@ -56,11 +56,11 @@
         条交易。
       </p>
 
-      <h4>信号列表（合并）</h4>
-      <el-table :data="currentDetail.signals" border max-height="300">
+      <h4>信号列表</h4>
+      <el-table :data="currentDetail.signals" border max-height="200">
         <el-table-column prop="date" label="日期" width="110" />
-        <el-table-column prop="code" label="股票" />
-        <el-table-column label="方向">
+        <el-table-column prop="code" label="股票" width="150" />
+        <el-table-column label="方向" width="80">
           <template #default="{ row }">{{ row.sign === 0 ? '买' : '卖' }}</template>
         </el-table-column>
         <el-table-column prop="price" label="价格" />
@@ -70,11 +70,11 @@
         <el-table-column prop="description" label="说明" show-overflow-tooltip />
       </el-table>
 
-      <h4 style="margin-top: 20px">交易记录（合并）</h4>
-      <el-table :data="currentDetail.trades" border max-height="300">
+      <h4 style="margin-top: 20px">交易记录</h4>
+      <el-table :data="currentDetail.trades" border max-height="200">
         <el-table-column prop="date" label="日期" width="110" />
-        <el-table-column prop="code" label="股票" />
-        <el-table-column prop="action" label="操作" />
+        <el-table-column prop="code" label="股票" width="150" />
+        <el-table-column prop="action" label="操作" width="80" />
         <el-table-column prop="price" label="价格">
           <template #default="{ row }">{{ formatNumber(row.price) }}</template>
         </el-table-column>
@@ -439,21 +439,6 @@ export const Card = {
   gap: 12px;
   margin-bottom: 16px;
   padding: 8px 16px;
-  background: #f5f7fa;
   border-radius: 8px;
-}
-
-.filter-label {
-  font-size: 13px;
-  color: #606266;
-}
-
-.tip-text {
-  font-size: 12px;
-  color: #909399;
-}
-
-.tip-text.warning {
-  color: #e6a23c;
 }
 </style>
