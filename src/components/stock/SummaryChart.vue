@@ -58,7 +58,20 @@ const option = computed(() => {
   }))
 
   return {
-    legend: { type: 'scroll' },
+    legend: {
+      type: 'scroll',
+      formatter: name => {
+        // 只截断策略（通过前缀判断）
+        if (name.startsWith('[策]')) {
+          const real = name.slice(3) // 去掉前缀
+          return '[策]' + (real.length > 10 ? real.slice(0, 10) + '...' : real)
+        }
+        return name
+      },
+      tooltip: {
+        show: true
+      }
+    },
     tooltip: {
       trigger: 'axis',
       formatter: params => {
