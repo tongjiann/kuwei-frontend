@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, Edit, Plus, Search } from '@element-plus/icons-vue'
 import type { StockInfo } from '#/stock/stock-info'
 import Detail from '@/views/stock/stock-info/Detail.vue'
 import Form from '@/views/stock/stock-info/Form.vue'
-import { apiMultiTest, apiSyncDailyInfo, apiInitStockInfo } from '@/api/stock/stock-common'
+import { apiMultiTest, apiSyncDailyInfo, apiInitStockInfo, apiGetSimpleStockInfo } from '@/api/stock/stock-common'
 import { apiGetKLineDataByStockId } from '@/api/stock/stock-daily-info'
 
 import { checkPermission } from '@/utils/permission'
@@ -129,43 +129,6 @@ async function syncDailyInfo() {
   }
 }
 
-const addStockVisible = ref(false)
-
-const addStockForm = ref({
-  code: '',
-  name: ''
-})
-
-const addStockLoading = ref(false)
-const openAddStockDialog = () => {
-  addStockForm.value = {
-    code: '',
-    name: ''
-  }
-  addStockVisible.value = true
-}
-const submitAddStock = async () => {
-  if (!addStockForm.value.code || !addStockForm.value.name) {
-    ElMessage.warning('请输入编码和名称')
-    return
-  }
-
-  addStockLoading.value = true
-  try {
-    await apiInitStockInfo(addStockForm.value)
-
-    ElMessage.success('新增成功')
-    addStockVisible.value = false
-
-    // 刷新列表
-    await getList()
-  } catch (e) {
-    console.error(e)
-  } finally {
-    addStockLoading.value = false
-  }
-}
-
 const drawKLine = async (stockId: string, stockName?: string) => {
   try {
     const response = await apiGetKLineDataByStockId(stockId)
@@ -242,6 +205,115 @@ function handleOpen() {
 }
 
 router.currentRoute.value.meta.keepAlive ? onActivated(activated) : activated()
+
+const addStockVisible = ref(false)
+
+const addStockForm = ref({
+  code: '',
+  name: ''
+})
+
+const addStockLoading = ref(false)
+
+/* ================= 🔍 搜索相关 ================= */
+
+const searchOptions = ref<
+  Array<{
+    code: string
+    name: string
+    type: number
+    typeStr: string
+  }>
+>([])
+
+const searchLoading = ref(false)
+const selectedStock = ref<any>(null)
+
+let searchTimer: any = null
+let lastKeyword = '' // 当前输入值
+let lastSearched = '' // 上一次真正请求的值
+let requestId = 0
+
+const handleSearch = (keyword: string) => {
+  // ✅ 1. 输入为空 → 不请求（且清空）
+  if (!keyword) {
+    lastKeyword = ''
+    lastSearched = ''
+    searchOptions.value = []
+    return
+  }
+
+  // ✅ 2. 输入未变化 → 不处理
+  if (keyword === lastKeyword) {
+    return
+  }
+
+  lastKeyword = keyword
+
+  if (searchTimer) clearTimeout(searchTimer)
+
+  searchTimer = setTimeout(async () => {
+    // ✅ 3. 防抖结束后再次判断（防止输入被改掉）
+    if (!lastKeyword || lastKeyword === lastSearched) {
+      return
+    }
+
+    const currentId = ++requestId
+    lastSearched = lastKeyword
+
+    // ✅ 仅在真正请求时清空
+    searchOptions.value = []
+    searchLoading.value = true
+
+    try {
+      const res = await apiGetSimpleStockInfo({ key: lastKeyword })
+
+      if (currentId === requestId) {
+        searchOptions.value = res.data || []
+      }
+    } catch (e) {
+      console.error('搜索失败', e)
+    } finally {
+      if (currentId === requestId) {
+        searchLoading.value = false
+      }
+    }
+  }, 500)
+}
+
+const handleSelect = (item: any) => {
+  if (!item) return
+  addStockForm.value.code = item.code
+  addStockForm.value.name = item.name
+}
+
+/* ================= 弹窗 ================= */
+
+const openAddStockDialog = () => {
+  addStockForm.value = { code: '', name: '' }
+
+  // ✅ 清理搜索状态
+  selectedStock.value = null
+  searchOptions.value = []
+
+  addStockVisible.value = true
+}
+
+const submitAddStock = async () => {
+  if (!addStockForm.value.code || !addStockForm.value.name) {
+    ElMessage.warning('请输入编码和名称')
+    return
+  }
+
+  addStockLoading.value = true
+  try {
+    await apiInitStockInfo(addStockForm.value)
+    ElMessage.success('新增成功')
+    addStockVisible.value = false
+  } finally {
+    addStockLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -392,18 +464,41 @@ router.currentRoute.value.meta.keepAlive ? onActivated(activated) : activated()
 
   <el-dialog v-model="addStockVisible" title="新增股票" width="400px">
     <el-form label-width="80px">
+      <!-- 🔍 远程搜索 -->
+      <el-form-item label="搜索">
+        <el-select
+          v-model="selectedStock"
+          filterable
+          remote
+          reserve-keyword
+          placeholder="输入名称/编码搜索"
+          :remote-method="handleSearch"
+          :loading="searchLoading"
+          style="width: 100%"
+          @change="handleSelect"
+        >
+          <el-option
+            v-for="item in searchOptions"
+            :key="item.code"
+            :label="'【' + item.typeStr + '】' + item.name + ' - ' + item.code"
+            :value="item"
+          />
+        </el-select>
+      </el-form-item>
+
+      <!-- 自动填充 -->
       <el-form-item label="编码">
-        <el-input v-model="addStockForm.code" placeholder="请输入股票编码" />
+        <el-input v-model="addStockForm.code" />
       </el-form-item>
 
       <el-form-item label="名称">
-        <el-input v-model="addStockForm.name" placeholder="请输入股票名称" />
+        <el-input v-model="addStockForm.name" />
       </el-form-item>
     </el-form>
 
     <template #footer>
       <el-button @click="addStockVisible = false">取消</el-button>
-      <el-button type="primary" :loading="addStockLoading" @click="submitAddStock"> 确认 </el-button>
+      <el-button type="primary" :loading="addStockLoading" @click="submitAddStock"> 确认</el-button>
     </template>
   </el-dialog>
 </template>

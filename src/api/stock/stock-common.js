@@ -15,3 +15,7 @@ export function apiMultiTest(params) {
 export function apiInitStockInfo(params) {
   return api.get(baseUrl + '/init-stock-info', params)
 }
+
+export function apiGetSimpleStockInfo(params) {
+  return api.get(baseUrl + '/get-simple-stock-info', params)
+}
