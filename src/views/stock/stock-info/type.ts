@@ -22,6 +22,8 @@ export interface StockInfo {
     latestDataFreshTime?: string
     // 数据起始时间
     dataStartTime?: string
+    // 是否关注
+    isFollowed?: boolean
     // 创建人
     createBy?: string
     createByLabel?: string

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { StockInfo } from '#/stock/stock-info'
+import type { StockInfo } from './type'
 
 const baseApi = '/stock/stock-info'
 
@@ -70,6 +70,11 @@ defineExpose({ init: loadData })
       <span class="txt-short">
         {{ model.updateTime }}
       </span>
+    </el-descriptions-item>
+    <el-descriptions-item label="是否关注" label-class-name="item-label" label-align="right">
+      <template v-if="model.isFollowed != null">
+        {{ model.isFollowed ? '是' : '否' }}
+      </template>
     </el-descriptions-item>
   </el-descriptions>
 </template>

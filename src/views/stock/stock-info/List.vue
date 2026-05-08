@@ -1,6 +1,6 @@
 <script setup lang="ts" name="StockInfo">
-import { ArrowDown, ArrowUp, Edit, Plus, Search } from '@element-plus/icons-vue'
-import type { StockInfo } from '#/stock/stock-info'
+import { Plus, Edit, Search, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
+import type { StockInfo } from './type'
 import Detail from '@/views/stock/stock-info/Detail.vue'
 import Form from '@/views/stock/stock-info/Form.vue'
 import { apiMultiTest, apiSyncDailyInfo, apiInitStockInfo, apiGetSimpleStockInfo } from '@/api/stock/stock-common'
@@ -366,6 +366,11 @@ const submitAddStock = async () => {
       <el-table-column width="100" label="来源" prop="source" show-overflow-tooltip />
       <el-table-column width="150" label="数据起始时间" prop="dataStartTime" show-overflow-tooltip />
       <el-table-column width="150" label="最新数据更新时间" prop="latestDataFreshTime" show-overflow-tooltip />
+      <el-table-column width="120" label="是否关注" prop="isFollowed" sortable="custom" show-overflow-tooltip>
+        <template #default="{ row }: { row: StockInfo }">
+          {{ row.isFollowed ? '是' : '否' }}
+        </template>
+      </el-table-column>
       <el-table-column label="操作" fixed="right">
         <template #default="{ row }: { row: StockInfo }">
           <el-space>

@@ -1,271 +1,141 @@
-<script setup lang="ts" name="StockInfo">
-import { Plus, Edit, Search, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
-import type { StockInfo } from '#/stock/stock-info'
-import Detail from '@/views/stock/stock-info/Detail.vue'
-import Form from '@/views/stock/stock-info/Form.vue'
+<script setup lang="ts">
+import type { FormInstance, FormValidateCallback } from 'element-plus'
+import type { StockInfo } from './type'
 
-import { checkPermission } from '@/utils/permission'
+defineProps<{
+  // 禁用表单内的所有组件
+  disabled?: boolean
+  // 禁用属性列表（只读不可输入）
+  disabledProps?: string[]
+  // 不可见属性列表（忽略不加载）
+  invisibleProps?: string[]
+}>()
+
+const emit = defineEmits<{
+  (e: 'complete', id?: string, isNew?: boolean): void
+  (e: 'submitting', submitting: boolean): void
+}>()
 
 const baseApi = '/stock/stock-info'
 
-const { queryParam, loading, dataList, pagination, getList, onSearch, resetFilter, remove, batchRemove } =
-  useList<StockInfo>({ baseApi, initQueryParam: {} })
-
-const searchState = ref(false)
-
-defineExpose({
-  refresh: onSearch,
-  addCondition: (key: keyof StockInfo, value: any, refresh = false) => {
-    queryParam[key] = value
-    if (refresh) onSearch()
-  }
+const { loadData, loading, model } = useDetail<StockInfo>(baseApi, {
+  isFollowed: false
 })
 
-const sortChange = ({ column, prop, order }: { column: { sortBy?: string }; prop: string; order: string }) => {
-  let orderBy: 'ASC' | 'DESC' | undefined
-  switch (order) {
-    case 'ascending':
-      orderBy = 'ASC'
-      break
-    case 'descending':
-      orderBy = 'DESC'
-      break
-    default:
-      orderBy = undefined
-  }
-  pagination.orderBy = orderBy ? `${column.sortBy ?? prop}:${orderBy}` : undefined
-  onSearch()
-}
+const { submitting, submit } = useForm({ baseApi, successCallback: (id, isNew) => emit('complete', id, isNew) })
+watch(submitting, value => emit('submitting', value))
 
-const formRef = ref()
-const formTitle = ref('')
-const submitting = ref(false)
-const formVisible = ref(false)
-const addSustainably = ref<boolean>(false)
+//  表单
+const formRef = ref<FormInstance>()
 
-const openForm = (id?: string) => {
-  if (id) {
-    addSustainably.value = false
-    formTitle.value = '编辑'
-  } else {
-    addSustainably.value = true
-    formTitle.value = '新建'
-  }
-  formVisible.value = true
+const validate = (
+  callback = (valid: boolean) =>
+    !valid &&
+    ElMessage.error({
+      message: '表单校验不通过',
+      grouping: true
+    })
+) =>
+  Promise.all([formRef.value].map(e => e?.validate?.(callback as any as FormValidateCallback)).filter(e => !!e))
+    .then((arr: (boolean | undefined)[]) => arr.every(e => e))
+    .catch(() => false)
 
-  nextTick(() => formRef.value?.init(id))
-}
-
-const closeForm = () => {
-  formVisible.value = false
-}
-
-const submit = (goOn = false) => {
-  formRef.value?.submit().then((result: boolean) => {
-    if (result) {
-      if (!goOn) {
-        formVisible.value = false
+defineExpose({
+  init: (id?: string, refresh = true, initData?: Record<string, unknown>) => {
+    if (model.value.id === id && !refresh) return
+    // 加载数据
+    loadData(id).then(() => {
+      if (!id) {
+        if (initData) Object.keys(initData).forEach(key => (model.value[key as keyof StockInfo] = initData[key] as any))
       }
-      formRef.value?.reset()
-    }
-  })
-}
-
-const detailRef = ref()
-const detailVisible = ref(false)
-const dataId = ref('')
-
-const openDetail = (id: string) => {
-  dataId.value = id
-  detailVisible.value = true
-
-  nextTick(() => detailRef.value?.init(id))
-}
-
-const closeDetail = () => {
-  detailVisible.value = false
-}
-const closeDetailAndOpenForm = () => {
-  detailVisible.value = false
-  openForm(dataId.value)
-}
-
-const handleOperation = (code: string, value?: string | string[], row?: StockInfo) => {
-  switch (code) {
-    case 'detail':
-      openDetail(value as string)
-      break
-    case 'create':
-    case 'update':
-      openForm(value as string)
-      break
-    case 'remove':
-      remove(value as string, row?.name)
-      break
-    case 'batchRemove':
-      batchRemove(value as string[])
-      break
-    default:
-      throw new Error(`不存在的操作编码${code}!`)
+    })
+  },
+  validate,
+  getData: async (relatedLabel = false) => {
+    const data: Record<string, unknown> = _.cloneDeep(model.value)
+    if (!relatedLabel) return data
+    return data
+  },
+  submit: () => submit(model.value, formRef.value),
+  reset: () => {
+    formRef.value?.resetFields()
+    model.value.id = void 0
   }
-}
-
-const refreshData = (haveNewData?: boolean) => {
-  haveNewData ? onSearch() : getList()
-}
-
-const router = useRouter()
-
-const activated = () => {
-  nextTick(() => {
-    const query = router.currentRoute.value.query
-    for (const queryKey in query) {
-      queryParam[queryKey as keyof StockInfo] = query[queryKey] as any
-    }
-
-    onSearch()
-  })
-}
-
-router.currentRoute.value.meta.keepAlive ? onActivated(activated) : activated()
+})
 </script>
 
 <template>
-  <div class="list-page">
-    <el-space wrap class="list-operation">
-      <el-button v-has-permission="'create'" type="primary" :icon="Plus" @click="handleOperation('create')">
-        新建
-      </el-button>
-
-      <el-space>
-        <span class="search">
-          <el-input v-model="queryParam.code" placeholder="编码" clearable @change="onSearch" />
-        </span>
-        <el-button :icon="Search" type="primary" @click="onSearch">查询</el-button>
-        <el-button title="重置查询条件" @click="resetFilter">重置</el-button>
-        <el-button
-          :icon="searchState ? ArrowUp : ArrowDown"
-          :title="searchState ? '收起' : '展开'"
-          @click="searchState = !searchState"
-        />
-      </el-space>
-    </el-space>
-
-    <el-form v-show="searchState" label-width="80px" class="list-search" @submit.prevent>
-      <el-row :gutter="18">
-        <el-col :md="24 / 1" :sm="24">
-          <el-form-item prop="name" label="名称">
-            <el-input v-model="queryParam.name" clearable @change="onSearch" />
-          </el-form-item>
-        </el-col>
-      </el-row>
-    </el-form>
-
-    <el-table
-      ref="tableRef"
-      v-loading="loading"
-      class="list-body"
-      :data="dataList"
-      height="100%"
-      stripe
-      row-key="id"
-      style="border-top: 1px solid var(--el-border-color-lighter)"
-      @row-dblclick="(row: StockInfo) => checkPermission('detail') && handleOperation('detail', row.id)"
-      @sort-change="sortChange"
-    >
-      <el-table-column type="index" width="50" fixed label="#" />
-      <el-table-column label="名称" prop="name" show-overflow-tooltip />
-      <el-table-column label="编码" prop="code" show-overflow-tooltip />
-      <el-table-column label="来源" prop="source" show-overflow-tooltip />
-      <el-table-column label="最新数据更新时间" prop="latestDataFreshTime" show-overflow-tooltip />
-      <el-table-column label="信息" prop="info" show-overflow-tooltip />
-      <el-table-column label="交易所" prop="exchange" show-overflow-tooltip />
-      <el-table-column label="板块" prop="section" show-overflow-tooltip />
-      <el-table-column label="操作" fixed="right" :width="180">
-        <template #default="{ row }: { row: StockInfo }">
-          <el-space>
-            <el-button
-              v-has-permission="'detail'"
-              type="primary"
-              text
-              bg
-              size="small"
-              @click="handleOperation('detail', row.id)"
-            >
-              详情
-            </el-button>
-            <el-dropdown
-              v-has-permission="['update', 'delete']"
-              @command="(code: string) => handleOperation(code, row.id, row)"
-            >
-              <el-button text bg type="primary" size="small">
-                {{ $t('operation.more') }}
-                <el-icon :size="16" style="margin-left: 5px">
-                  <ArrowDown />
-                </el-icon>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item v-if="checkPermission('update')" command="update">
-                    <el-button link>编辑</el-button>
-                  </el-dropdown-item>
-                  <el-dropdown-item v-if="checkPermission('delete')" command="remove">
-                    <el-button link type="danger">删除</el-button>
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </el-space>
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <el-pagination
-      v-if="pagination.total"
-      v-model:current-page="pagination.current"
-      v-model:page-size="pagination.pageSize"
-      size="small"
-      background
-      layout="total, sizes, prev, pager, next, jumper"
-      :total="pagination.total"
-      @size-change="getList()"
-      @current-change="getList()"
-    />
-
-    <el-dialog v-model="formVisible" width="60%" :title="formTitle" draggable @close="closeForm">
-      <Form
-        ref="formRef"
-        @submitting="(val: boolean) => (submitting = val)"
-        @complete="(id?: string, isNew?: boolean) => refreshData(isNew)"
-      />
-
-      <template #footer>
-        <el-button @click="closeForm">取消</el-button>
-        <el-button v-show="addSustainably" type="primary" :loading="submitting" @click="submit(true)">
-          保存并继续
-        </el-button>
-        <el-button type="primary" :loading="submitting" @click="submit()">保存</el-button>
-      </template>
-    </el-dialog>
-
-    <el-dialog v-model="detailVisible" width="60%" title="详情" draggable @close="closeDetail">
-      <Detail ref="detailRef" />
-
-      <template #footer>
-        <el-button
-          v-has-permission="'update'"
-          plain
-          :icon="Edit"
-          type="primary"
-          style="position: absolute; left: var(--el-dialog-padding-primary)"
-          @click="closeDetailAndOpenForm"
-        >
-          编辑
-        </el-button>
-        <el-button @click="closeDetail">关闭</el-button>
-      </template>
-    </el-dialog>
-  </div>
+  <el-form ref="formRef" v-loading="loading" :model="model" label-width="90px" :disabled="disabled">
+    <el-row :gutter="18">
+      <el-col v-if="!invisibleProps?.includes('name')" :span="12">
+        <el-form-item prop="name" label="名称">
+          <el-input v-model="model.name" :disabled="disabledProps?.includes('name')" clearable />
+        </el-form-item>
+      </el-col>
+      <el-col v-if="!invisibleProps?.includes('code')" :span="12">
+        <el-form-item prop="code" label="编码" :rules="{ required: true, message: '不能为空', whitespace: true }">
+          <el-input v-model="model.code" :disabled="disabledProps?.includes('code')" clearable />
+        </el-form-item>
+      </el-col>
+      <el-col v-if="!invisibleProps?.includes('extraInfo')" :span="12">
+        <el-form-item prop="extraInfo" label="额外">
+          <el-input
+            v-model="model.extraInfo"
+            :disabled="disabledProps?.includes('extraInfo')"
+            clearable
+            type="textarea"
+            autosize
+          />
+        </el-form-item>
+      </el-col>
+      <el-col v-if="!invisibleProps?.includes('section')" :span="12">
+        <el-form-item prop="section" label="板块">
+          <el-input v-model="model.section" :disabled="disabledProps?.includes('section')" clearable />
+        </el-form-item>
+      </el-col>
+      <el-col v-if="!invisibleProps?.includes('info')" :span="12">
+        <el-form-item prop="info" label="信息">
+          <el-input v-model="model.info" :disabled="disabledProps?.includes('info')" clearable />
+        </el-form-item>
+      </el-col>
+      <el-col v-if="!invisibleProps?.includes('exchange')" :span="12">
+        <el-form-item prop="exchange" label="交易所">
+          <el-input v-model="model.exchange" :disabled="disabledProps?.includes('exchange')" clearable />
+        </el-form-item>
+      </el-col>
+      <el-col v-if="!invisibleProps?.includes('source')" :span="12">
+        <el-form-item prop="source" label="来源">
+          <el-input v-model="model.source" :disabled="disabledProps?.includes('source')" clearable />
+        </el-form-item>
+      </el-col>
+      <el-col v-if="!invisibleProps?.includes('latestDataFreshTime')" :span="12">
+        <el-form-item prop="latestDataFreshTime" label="最新数据更新时间">
+          <el-date-picker
+            v-model="model.latestDataFreshTime"
+            :disabled="disabledProps?.includes('latestDataFreshTime') || !!model.id"
+            clearable
+            type="date"
+            value-format="YYYY-MM-DD"
+          />
+        </el-form-item>
+      </el-col>
+      <el-col v-if="!invisibleProps?.includes('isFollowed')" :span="12">
+        <el-form-item prop="isFollowed" label="是否关注">
+          <el-switch v-model="model.isFollowed" :disabled="disabledProps?.includes('isFollowed')" />
+        </el-form-item>
+      </el-col>
+    </el-row>
+  </el-form>
 </template>
 
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+.option {
+  display: flex;
+  justify-content: space-between;
+
+  .ext {
+    font-size: var(--el-font-size-extra-small);
+    color: var(--el-text-color-secondary);
+  }
+}
+</style>
