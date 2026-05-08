@@ -56,3 +56,14 @@ jobs:
       - name: Push Docker
         run: |
           docker push tongjiann/kuwei-frontend:latest
+
+      - name: send info to ding
+        # You may pin to the exact commit or the version.
+        # uses: indiesdev/curl@5f733a4ab67799ec174b9b9b3f8d78100ae084e8
+        uses: indiesdev/curl@v1.1
+        with:
+          # The target url
+          url: https://api.xiw.world/api/msg/send?msg=kuwei-frontend%E9%95%9C%E5%83%8F%E6%8E%A8%E9%80%81%E5%AE%8C%E6%88%90
+          # Should log the response
+          log-response: true
+          timeout: 20000
