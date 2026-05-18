@@ -1,5 +1,5 @@
 <template>
-  <div ref="chartRef" class="kline-chart" :style="{ width, height }" />
+  <div ref="chartRef" class="kline-chart" />
 </template>
 
 <script setup>
@@ -17,8 +17,6 @@ const props = defineProps({
     type: String,
     default: ''
   },
-  width: { type: String, default: '100%' },
-  height: { type: String, default: '600px' },
   showVolume: { type: Boolean, default: false }
 })
 
@@ -197,7 +195,7 @@ const buildOption = () => {
       data: volumes,
       xAxisIndex: 1,
       yAxisIndex: 1,
-      barWidth: '60%',
+      barWidth: '90%',
       itemStyle: {
         color: params => {
           const d = props.data[params.dataIndex]
@@ -276,7 +274,6 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .kline-chart {
-  width: 100%;
-  height: 100%;
+  height: 90vh;
 }
 </style>

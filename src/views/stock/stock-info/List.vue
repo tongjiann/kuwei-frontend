@@ -461,7 +461,7 @@ const submitAddStock = async () => {
     </el-dialog>
   </div>
 
-  <el-dialog v-model="chartVisible" width="900px" destroy-on-close @opened="onDialogOpened">
+  <el-dialog v-model="chartVisible" width="95%" align-center destroy-on-close @opened="onDialogOpened">
     <CandlestickChart ref="chartRef" :data="klineData" :title-prefix="klineTitlePrefix" show-volume />
   </el-dialog>
 
