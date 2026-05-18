@@ -37,7 +37,7 @@
     </template>
   </div>
 
-  <v-chart ref="chartRef" :option="option" style="height: 520px" autoresize @finished="initChartClick" />
+  <v-chart ref="chartRef" :option="option" style="height: 65vh" autoresize @finished="initChartClick" />
 
   <!-- 信号详情弹窗（支持聚合后的多日数据） -->
   <el-dialog v-model="dialogVisible" title="信号详情" width="900px" align-center>
@@ -57,7 +57,7 @@
       </p>
 
       <h4>信号列表</h4>
-      <el-table :data="currentDetail.signals" border max-height="200">
+      <el-table :data="currentDetail.signals" border max-height="25vh">
         <el-table-column prop="date" label="日期" width="110" />
         <el-table-column prop="code" label="股票" width="150" />
         <el-table-column label="方向" width="80">
@@ -71,7 +71,7 @@
       </el-table>
 
       <h4 style="margin-top: 20px">交易记录</h4>
-      <el-table :data="currentDetail.trades" border max-height="200">
+      <el-table :data="currentDetail.trades" border max-height="25vh">
         <el-table-column prop="date" label="日期" width="110" />
         <el-table-column prop="code" label="股票" width="150" />
         <el-table-column prop="action" label="操作" width="80" />
@@ -273,9 +273,17 @@ function dynamicAggregate(rawPoints, windowDays, signalMap) {
     else label = '?'
 
     const hasTrade = allTrades.length > 0
-    // 0:买卖都有｜1:卖｜2:买
-    const type = buyCount > 0 && sellCount > 0 ? 0 : buyCount > 0 && sellCount === 0 ? 1 : 2
-    const color = type === 2 ? '#67C23A' : type === 1 ? '#F56C6C' : '#ae9753'
+    const total = buyCount + sellCount
+
+    let r = 127
+    let g = 128
+
+    if (total > 0) {
+      r = Math.round((buyCount / total) * 255)
+      g = 255 - r
+    }
+
+    const color = `rgb(${r}, ${g}, 0)`
     const aggKey = `dynamic_${first.date}_${last.date}`
 
     // 存储聚合详情到 signalMap（供弹窗使用）

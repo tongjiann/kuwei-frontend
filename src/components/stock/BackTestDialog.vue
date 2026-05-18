@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="visible" width="95%" top="5vh">
+  <el-dialog v-model="visible" width="95%" height="95%" top="5vh" center="true">
     <template #header>
       <div class="dialog-header">
         <el-tabs v-model="activeIndex" :stretch="true">
