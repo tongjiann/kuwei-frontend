@@ -19,3 +19,7 @@ export function apiInitStockInfo(params) {
 export function apiGetSimpleStockInfo(params) {
   return api.get(baseUrl + '/get-simple-stock-info', params)
 }
+
+export function apiSingleDetectorMultiCodeTest(params) {
+  return api.post(baseUrl + '/single-detector-multi-code-test', params)
+}

@@ -4,8 +4,20 @@ import type { CustomDetector } from './type'
 import ExcelExport from '@/components/excel/Export.vue'
 import Detail from '@/views/detector/custom-detector/Detail.vue'
 import Form from '@/views/detector/custom-detector/Form.vue'
+import { apiSingleDetectorMultiCodeTest } from '@/api/stock/stock-common'
 
 import { checkPermission } from '@/utils/permission'
+import dayjs from 'dayjs'
+import BackTestDialog from '@/components/stock/BackTestDialog.vue'
+import { ref } from 'vue'
+import { ElMessage, type ElTable } from 'element-plus'
+import { api } from '@/utils/request'
+
+interface SimpleStockInfo {
+  code: string
+  name: string
+  typeStr?: string
+}
 
 const baseApi = '/detector/custom-detector'
 
@@ -118,6 +130,83 @@ const closeDetailAndOpenForm = () => {
   openForm(dataId.value)
 }
 
+const backTestResultList = ref([])
+const backTestDialogVisible = ref(false)
+const multiCodeTestVisible = ref(false)
+const multiCodeTestDetectorId = ref('')
+const multiCodeTestStartDate = ref('')
+const multiCodeTestStockList = ref<SimpleStockInfo[]>([])
+const multiCodeTestSelectedStockList = ref<SimpleStockInfo[]>([])
+const multiCodeTestLoading = ref(false)
+const multiCodeTestSubmitting = ref(false)
+const multiCodeTestStockTableRef = ref<InstanceType<typeof ElTable>>()
+let multiCodeTestRequestId = 0
+
+const loadMultiCodeTestStockList = async () => {
+  const currentId = ++multiCodeTestRequestId
+  multiCodeTestLoading.value = true
+
+  try {
+    const res = await api.get('stock/stock-info?pageIndex=1&pageSize=999999&orderBy=isFollowed%3ADESC', {})
+
+    if (currentId === multiCodeTestRequestId) {
+      multiCodeTestStockList.value = res.data || []
+    }
+  } catch (e) {
+    if (currentId === multiCodeTestRequestId) {
+      multiCodeTestStockList.value = []
+    }
+  } finally {
+    if (currentId === multiCodeTestRequestId) {
+      multiCodeTestLoading.value = false
+    }
+  }
+}
+
+const singleDetectorMultiCodeTest = async (detectorId: string) => {
+  multiCodeTestDetectorId.value = detectorId
+  multiCodeTestStartDate.value = dayjs().subtract(1, 'year').format('YYYY-MM-DD')
+  multiCodeTestSelectedStockList.value = []
+  multiCodeTestStockList.value = []
+  multiCodeTestVisible.value = true
+
+  await nextTick()
+  multiCodeTestStockTableRef.value?.clearSelection()
+  await loadMultiCodeTestStockList()
+}
+
+const submitSingleDetectorMultiCodeTest = async () => {
+  if (!multiCodeTestStartDate.value) {
+    ElMessage.warning('请选择开始日期')
+    return
+  }
+
+  if (!multiCodeTestSelectedStockList.value.length) {
+    ElMessage.warning('请选择股票')
+    return
+  }
+
+  multiCodeTestSubmitting.value = true
+  try {
+    const res = await apiSingleDetectorMultiCodeTest({
+      codeList: multiCodeTestSelectedStockList.value.map(item => item.code),
+      startDate: dayjs(multiCodeTestStartDate.value).format('YYYYMMDD'),
+      detectorId: multiCodeTestDetectorId.value
+    })
+    backTestResultList.value = res.data
+    multiCodeTestVisible.value = false
+    backTestDialogVisible.value = true
+  } finally {
+    multiCodeTestSubmitting.value = false
+  }
+}
+
+function handleOpen() {
+  setTimeout(() => {
+    window.dispatchEvent(new Event('resize'))
+  }, 100)
+}
+
 const handleOperation = (code: string, value?: string | string[], row?: CustomDetector) => {
   switch (code) {
     case 'detail':
@@ -218,7 +307,7 @@ router.currentRoute.value.meta.keepAlive ? onActivated(activated) : activated()
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" fixed="right" :width="180">
+      <el-table-column label="操作" fixed="right">
         <template #default="{ row }: { row: CustomDetector }">
           <el-space>
             <el-button
@@ -231,6 +320,8 @@ router.currentRoute.value.meta.keepAlive ? onActivated(activated) : activated()
             >
               详情
             </el-button>
+            <el-button @click="singleDetectorMultiCodeTest(row.id)">多股票回测</el-button>
+
             <el-dropdown
               v-has-permission="['update', 'delete']"
               @command="(code: string) => handleOperation(code, row.id, row)"
@@ -303,6 +394,47 @@ router.currentRoute.value.meta.keepAlive ? onActivated(activated) : activated()
       </template>
     </el-dialog>
   </div>
+
+  <el-dialog v-model="multiCodeTestVisible" title="多股票回测" width="720px" draggable>
+    <el-form label-width="80px">
+      <el-form-item label="开始日期" required>
+        <el-date-picker
+          v-model="multiCodeTestStartDate"
+          type="date"
+          value-format="YYYY-MM-DD"
+          placeholder="请选择开始日期"
+          style="width: 220px"
+        />
+      </el-form-item>
+
+      <el-form-item label="股票列表" required>
+        <div class="stock-selector">
+          <el-table
+            ref="multiCodeTestStockTableRef"
+            v-loading="multiCodeTestLoading"
+            :data="multiCodeTestStockList"
+            row-key="code"
+            height="360"
+            border
+            @selection-change="(arr: SimpleStockInfo[]) => (multiCodeTestSelectedStockList = arr)"
+          >
+            <el-table-column type="selection" width="55" />
+            <el-table-column label="名称" prop="name" show-overflow-tooltip />
+            <el-table-column label="编码" prop="code" width="180" show-overflow-tooltip />
+          </el-table>
+        </div>
+      </el-form-item>
+    </el-form>
+
+    <template #footer>
+      <el-button @click="multiCodeTestVisible = false">取消</el-button>
+      <el-button type="primary" :loading="multiCodeTestSubmitting" @click="submitSingleDetectorMultiCodeTest">
+        确认
+      </el-button>
+    </template>
+  </el-dialog>
+
+  <BackTestDialog v-model="backTestDialogVisible" :data="backTestResultList" @open="handleOpen" />
 </template>
 
 <style scoped lang="scss">
@@ -314,5 +446,14 @@ router.currentRoute.value.meta.keepAlive ? onActivated(activated) : activated()
     font-size: var(--el-font-size-extra-small);
     color: var(--el-text-color-secondary);
   }
+}
+
+.stock-selector {
+  width: 100%;
+}
+
+.stock-selector-search {
+  width: 320px;
+  margin-bottom: 12px;
 }
 </style>

@@ -1,5 +1,12 @@
 <template>
-  <el-dialog v-model="visible" width="95%" height="95%" top="5vh" center="true">
+  <el-dialog
+    v-model="visible"
+    width="95%"
+    top="5vh"
+    :center="true"
+    @closed="contentReady = false"
+    @opened="handleOpened"
+  >
     <template #header>
       <div class="dialog-header">
         <el-tabs v-model="activeIndex" :stretch="true">
@@ -14,9 +21,9 @@
       </div>
     </template>
 
-    <SummaryChart v-if="activeIndex === 'summary'" :data="data" />
+    <SummaryChart v-if="contentReady && activeIndex === 'summary'" :data="data" />
 
-    <StrategyDetail v-else :data="data[Number(activeIndex)]" />
+    <StrategyDetail v-if="contentReady && activeIndex !== 'summary'" :data="data[Number(activeIndex)]" />
   </el-dialog>
 </template>
 
@@ -27,12 +34,17 @@ import StrategyDetail from './StrategyDetail.vue'
 
 const props = defineProps({
   modelValue: Boolean,
-  data: Array
+  data: {
+    type: Array,
+    default: () => []
+  }
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'open'])
 
 const visible = ref(props.modelValue)
+const contentReady = ref(false)
+
 watch(
   () => props.modelValue,
   v => (visible.value = v)
@@ -40,6 +52,11 @@ watch(
 watch(visible, v => emit('update:modelValue', v))
 
 const activeIndex = ref('summary')
+
+function handleOpened() {
+  contentReady.value = true
+  emit('open')
+}
 </script>
 <style lang="css">
 .dialog-header {

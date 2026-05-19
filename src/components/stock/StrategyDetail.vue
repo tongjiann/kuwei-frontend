@@ -94,9 +94,32 @@
 <script setup>
 import { computed, ref, nextTick, watch, onMounted } from 'vue'
 import VChart from 'vue-echarts'
+import { use } from 'echarts/core'
+import { CanvasRenderer } from 'echarts/renderers'
+import { LineChart } from 'echarts/charts'
+import {
+  DataZoomComponent,
+  GridComponent,
+  LegendComponent,
+  MarkPointComponent,
+  TooltipComponent
+} from 'echarts/components'
+
+use([
+  CanvasRenderer,
+  LineChart,
+  DataZoomComponent,
+  GridComponent,
+  LegendComponent,
+  MarkPointComponent,
+  TooltipComponent
+])
 
 const props = defineProps({
-  data: Object
+  data: {
+    type: Object,
+    default: () => ({})
+  }
 })
 
 const chartRef = ref(null)

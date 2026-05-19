@@ -5,9 +5,18 @@
 <script setup>
 import { computed, ref, nextTick, watch } from 'vue'
 import VChart from 'vue-echarts'
+import { use } from 'echarts/core'
+import { CanvasRenderer } from 'echarts/renderers'
+import { LineChart } from 'echarts/charts'
+import { DataZoomComponent, GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
+
+use([CanvasRenderer, LineChart, DataZoomComponent, GridComponent, LegendComponent, TooltipComponent])
 
 const props = defineProps({
-  data: Array
+  data: {
+    type: Array,
+    default: () => []
+  }
 })
 
 const chartRef = ref(null)
@@ -22,7 +31,6 @@ watch(
 
 const option = computed(() => {
   if (!props.data?.length) return {}
-
   const dates = props.data[0].portfolioDailyRecordList.map(r => r.date)
   const len = dates.length
 
