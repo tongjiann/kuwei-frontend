@@ -32,9 +32,9 @@ defineExpose({ init: loadData })
       </span>
     </el-descriptions-item>
     <el-descriptions-item label="是否启用" label-class-name="item-label" label-align="right">
-      <el-tag v-if="model.isEnableLabel" :color="model.isEnableLabel.ext?.color" effect="dark" type="info">
-        {{ model.isEnableLabel?.label }}
-      </el-tag>
+      <template v-if="model.isEnable != null">
+        {{ model.isEnable ? '是' : '否' }}
+      </template>
     </el-descriptions-item>
     <el-descriptions-item label="创建人" label-class-name="item-label" label-align="right">
       <span class="txt-short">

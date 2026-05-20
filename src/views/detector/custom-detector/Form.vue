@@ -128,7 +128,6 @@ const confirmConfig = () => {
 const baseApi = '/detector/custom-detector'
 
 const { initRelatedData, relatedData } = useOption({
-  dict: ['TRUE_FALSE_DIC'],
   load: {
     templateIdOptions: { type: 'DetectorTemplate', label: 'name' },
     relatedAccountIdOptions: { type: 'IamUser', label: 'realname' }
@@ -136,7 +135,8 @@ const { initRelatedData, relatedData } = useOption({
 })
 
 const { loadData, loading, model } = useDetail<CustomDetector>(baseApi, {
-  relatedAccountId: authStore.info?.id
+  relatedAccountId: authStore.info?.id,
+  isEnable: false
 })
 
 const { submitting, submit } = useForm({ baseApi, successCallback: (id, isNew) => emit('complete', id, isNew) })
@@ -183,7 +183,6 @@ defineExpose({
       data.relatedAccountIdLabel = options.find(e => e.value === data.relatedAccountId)?.label
     } else data.relatedAccountIdLabel = undefined
 
-    data.isEnableLabel = relatedData.trueFalseDicOptions.find(e => e.value === data.isEnable)
     return data
   },
   submit: () => submit(model.value, formRef.value),
@@ -239,9 +238,7 @@ defineExpose({
       </el-col>
       <el-col v-if="!invisibleProps?.includes('isEnable')" :span="12">
         <el-form-item prop="isEnable" label="是否启用">
-          <el-select v-model="model.isEnable" :disabled="disabledProps?.includes('isEnable')" filterable clearable>
-            <el-option v-for="item in relatedData.trueFalseDicOptions" :key="item.value" v-bind="item" />
-          </el-select>
+          <el-switch v-model="model.isEnable" :disabled="disabledProps?.includes('isEnable')" />
         </el-form-item>
       </el-col>
     </el-row>

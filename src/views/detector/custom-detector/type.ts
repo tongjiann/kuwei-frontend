@@ -15,8 +15,7 @@ export interface CustomDetector {
   relatedAccountId?: string
   relatedAccountIdLabel?: string
   // 是否启用
-  isEnable?: string
-  isEnableLabel?: LabelValue<{ color?: string }>
+  isEnable?: boolean
   // 创建人
   createBy?: string
   createByLabel?: string

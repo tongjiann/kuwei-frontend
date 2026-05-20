@@ -295,16 +295,9 @@ router.currentRoute.value.meta.keepAlive ? onActivated(activated) : activated()
       <el-table-column label="模板" prop="templateIdLabel" show-overflow-tooltip />
       <el-table-column label="配置参数" prop="configParam" show-overflow-tooltip />
       <el-table-column label="展示名称" prop="displayName" show-overflow-tooltip />
-      <el-table-column label="是否启用" prop="isEnableLabel" show-overflow-tooltip>
+      <el-table-column label="是否启用" prop="isEnable" sortable="custom" width="120" show-overflow-tooltip>
         <template #default="{ row }: { row: CustomDetector }">
-          <el-tag
-            v-if="row.isEnableLabel"
-            effect="dark"
-            type="info"
-            :color="(row.isEnableLabel as LabelValue<{ color?: string }>).ext?.color"
-          >
-            {{ (row.isEnableLabel as LabelValue).label }}
-          </el-tag>
+          {{ row.isEnable ? '是' : '否' }}
         </template>
       </el-table-column>
       <el-table-column label="操作" fixed="right">
