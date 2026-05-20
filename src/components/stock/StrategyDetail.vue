@@ -1,20 +1,11 @@
 <template>
   <!-- 指标卡片 -->
   <el-row :gutter="16" class="mb-4" justify="center">
-    <el-col :span="4">
-      <Card title="收益率" :value="formatPercent(data.returnRate)" />
-    </el-col>
-    <el-col :span="4">
-      <Card title="最大回撤" :value="formatPercent(data.maxDrawDown)" />
-    </el-col>
-    <el-col :span="4">
-      <Card title="夏普率" :value="formatNumber(data.sharpeRatio)" />
-    </el-col>
-    <el-col :span="4">
-      <Card title="总信号数" :value="data.signalSize" />
-    </el-col>
-    <el-col :span="4">
-      <Card title="总交易数" :value="data.tradeDetailSize" />
+    <el-col v-for="metric in metricCards" :key="metric.title" :span="4">
+      <div class="metric-card">
+        <div class="metric-card__title">{{ metric.title }}</div>
+        <div class="metric-card__value">{{ metric.value ?? '-' }}</div>
+      </div>
     </el-col>
   </el-row>
 
@@ -135,6 +126,14 @@ const currentTotalSize = ref(0)
 
 const baseRatio = 15
 
+const metricCards = computed(() => [
+  { title: '收益率', value: formatPercent(props.data.returnRate) },
+  { title: '最大回撤', value: formatPercent(props.data.maxDrawDown) },
+  { title: '夏普率', value: formatNumber(props.data.sharpeRatio) },
+  { title: '总信号数', value: props.data.signalSize },
+  { title: '总交易数', value: props.data.tradeDetailSize }
+])
+
 // 点击事件
 function initChartClick() {
   const chart = chartRef.value?.chart
@@ -158,7 +157,7 @@ function initDataZoomListener() {
   chart.off('dataZoom')
 
   // 添加 dataZoom 监听
-  chart.on('dataZoom', params => {
+  chart.on('dataZoom', () => {
     updateCurrentVisibleSize()
   })
 
@@ -449,19 +448,22 @@ function formatNumber(v) {
 }
 </script>
 
-<script>
-export const Card = {
-  props: ['title', 'value'],
-  template: `
-    <div style="padding:12px;border-radius:10px;background:rgb( 90,156,248,0.2)">
-      <div style="font-size:12px;">{{ title }}</div>
-      <div style="font-size:18px;font-weight:bold">{{ value || '-' }}</div>
-    </div>
-  `
-}
-</script>
-
 <style scoped>
+.metric-card {
+  padding: 12px;
+  border-radius: 10px;
+  background: rgb(90 156 248 / 20%);
+}
+
+.metric-card__title {
+  font-size: 12px;
+}
+
+.metric-card__value {
+  font-size: 18px;
+  font-weight: bold;
+}
+
 .filter-bar {
   display: flex;
   flex-wrap: wrap;
