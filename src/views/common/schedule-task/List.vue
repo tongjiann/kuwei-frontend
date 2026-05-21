@@ -3,6 +3,7 @@ import { Plus, Edit, Search, ArrowDown } from '@element-plus/icons-vue'
 import type { ScheduleTask } from './type'
 import Detail from '@/views/common/schedule-task/Detail.vue'
 import Form from '@/views/common/schedule-task/Form.vue'
+import { apiRunTaskManually } from '@/api/common/schedule-task'
 
 import { checkPermission } from '@/utils/permission'
 
@@ -106,6 +107,17 @@ const handleOperation = (code: string, value?: string | string[], row?: Schedule
     default:
       throw new Error(`不存在的操作编码${code}!`)
   }
+}
+
+const runTaskManually = (id: string) => {
+  apiRunTaskManually(id)
+    .then(res => {
+      ElMessage.success(res.msg)
+      getList()
+    })
+    .catch(err => {
+      ElMessage.error(err.msg || err.message || '运行失败，请稍后重试')
+    })
 }
 
 const sum = (prop: keyof ScheduleTask, fractionDigits?: number) =>
@@ -245,7 +257,7 @@ router.currentRoute.value.meta.keepAlive ? onActivated(activated) : activated()
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" fixed="right" :width="180">
+      <el-table-column label="操作" fixed="right" :width="240">
         <template #default="{ row }: { row: ScheduleTask }">
           <el-space>
             <el-button
@@ -258,6 +270,7 @@ router.currentRoute.value.meta.keepAlive ? onActivated(activated) : activated()
             >
               详情
             </el-button>
+            <el-button type="success" text bg size="small" @click="runTaskManually(row.id)">运行</el-button>
             <el-dropdown
               v-has-permission="['update', 'delete']"
               @command="(code: string) => handleOperation(code, row.id, row)"
