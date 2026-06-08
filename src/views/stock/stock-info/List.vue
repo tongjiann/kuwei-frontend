@@ -18,10 +18,15 @@ const backTestResultList = ref([])
 const klineTitlePrefix = ref({})
 const chartVisible = ref(false)
 const backTestDialogVisible = ref(false)
+const backTestDateDialogVisible = ref(false)
 
 const chartRef = ref()
 
 const syncLoading = ref(false)
+const backTestSubmitting = ref(false)
+const backTestStartDate = ref('')
+const backTestStockCode = ref('')
+const backTestDataStartTime = ref('')
 
 const onDialogOpened = () => {
   // 👇 强制 resize（关键）
@@ -140,24 +145,71 @@ const drawKLine = async (stockId: string, stockName?: string) => {
   }
 }
 
-const multiTest = async (dataStartTime?: string, code?: string) => {
+const normalizeDate = (date?: string) => {
+  if (!date) return ''
+
+  if (/^\d{8}$/.test(date)) {
+    return `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}`
+  }
+
+  const parsedDate = dayjs(date)
+  return parsedDate.isValid() ? parsedDate.format('YYYY-MM-DD') : ''
+}
+
+const backTestDateOptions = computed(() => [
+  {
+    label: '数据起始日',
+    value: backTestDataStartTime.value,
+    disabled: !backTestDataStartTime.value
+  },
+  {
+    label: '近1年',
+    value: dayjs().subtract(1, 'year').format('YYYY-MM-DD')
+  },
+  {
+    label: '近半年',
+    value: dayjs().subtract(6, 'month').format('YYYY-MM-DD')
+  },
+  {
+    label: '近3月',
+    value: dayjs().subtract(3, 'month').format('YYYY-MM-DD')
+  },
+  {
+    label: '近1月',
+    value: dayjs().subtract(1, 'month').format('YYYY-MM-DD')
+  }
+])
+
+const multiTest = (dataStartTime?: string, code?: string) => {
+  backTestStockCode.value = code ?? ''
+  backTestDataStartTime.value = normalizeDate(dataStartTime)
+  backTestStartDate.value = backTestDataStartTime.value || dayjs().subtract(1, 'year').format('YYYY-MM-DD')
+  backTestDateDialogVisible.value = true
+}
+
+const selectBackTestDate = (date: string) => {
+  if (!date) return
+  backTestStartDate.value = date
+}
+
+const submitMultiTest = async () => {
+  if (!backTestStartDate.value) {
+    ElMessage.warning('请选择回测开始日期')
+    return
+  }
+
+  backTestSubmitting.value = true
   try {
-    const { value } = await ElMessageBox.prompt('请选择回测起始日期', '提示', {
-      inputType: 'date',
-      inputValue: dataStartTime
-    })
-
-    const startDateStr = dayjs(value).format('YYYYMMDD')
-
     const res = await apiMultiTest({
-      ...(code && { code }),
-      startDateStr
+      ...(backTestStockCode.value && { code: backTestStockCode.value }),
+      startDateStr: dayjs(backTestStartDate.value).format('YYYYMMDD')
     })
 
     backTestResultList.value = res.data
+    backTestDateDialogVisible.value = false
     backTestDialogVisible.value = true
-  } catch (e) {
-    // 用户取消 or 请求失败
+  } finally {
+    backTestSubmitting.value = false
   }
 }
 
@@ -463,6 +515,40 @@ const submitAddStock = async () => {
 
   <el-dialog v-model="chartVisible" width="95%" align-center destroy-on-close @opened="onDialogOpened">
     <CandlestickChart ref="chartRef" :data="klineData" :title-prefix="klineTitlePrefix" show-volume />
+  </el-dialog>
+
+  <el-dialog v-model="backTestDateDialogVisible" title="选择回测时间" width="460px" draggable>
+    <el-form label-width="90px">
+      <el-form-item label="开始日期" required>
+        <el-date-picker
+          v-model="backTestStartDate"
+          type="date"
+          value-format="YYYY-MM-DD"
+          placeholder="请选择回测开始日期"
+          style="width: 220px"
+        />
+      </el-form-item>
+
+      <el-form-item label="周期">
+        <el-space wrap>
+          <el-button
+            v-for="item in backTestDateOptions"
+            :key="item.label"
+            size="small"
+            :type="backTestStartDate === item.value ? 'primary' : undefined"
+            :disabled="item.disabled"
+            @click="selectBackTestDate(item.value)"
+          >
+            {{ item.label }}
+          </el-button>
+        </el-space>
+      </el-form-item>
+    </el-form>
+
+    <template #footer>
+      <el-button @click="backTestDateDialogVisible = false">取消</el-button>
+      <el-button type="primary" :loading="backTestSubmitting" @click="submitMultiTest">确认</el-button>
+    </template>
   </el-dialog>
 
   <BackTestDialog v-model="backTestDialogVisible" :data="backTestResultList" @open="handleOpen" />
