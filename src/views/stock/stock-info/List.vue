@@ -1,22 +1,32 @@
 <script setup lang="ts" name="StockInfo">
 import { Plus, Edit, Search, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import type { StockInfo } from './type'
+import type { StockDailyInfo, VolumeProfile } from '#/stock/stock-daily-info'
 import Detail from '@/views/stock/stock-info/Detail.vue'
 import Form from '@/views/stock/stock-info/Form.vue'
 import { apiMultiTest, apiSyncDailyInfo, apiInitStockInfo, apiGetSimpleStockInfo } from '@/api/stock/stock-common'
-import { apiGetKLineDataByStockId } from '@/api/stock/stock-daily-info'
+import { apiGetKLineDataByStockId, apiGetVolumeProfile } from '@/api/stock/stock-daily-info'
 
 import { checkPermission } from '@/utils/permission'
 import dayjs from 'dayjs'
+import { debounce } from 'lodash'
 
 import { ref } from 'vue'
 import CandlestickChart from '@/components/stock/CandlestickChart.vue'
 import BackTestDialog from '@/components/stock/BackTestDialog.vue'
 
-const klineData = ref([])
+const klineData = ref<StockDailyInfo[]>([])
 const backTestResultList = ref([])
-const klineTitlePrefix = ref({})
+const klineTitlePrefix = ref('')
 const chartVisible = ref(false)
+const volumeProfile = ref<VolumeProfile | null>(null)
+const chartStockId = ref('')
+const chartRowCount = ref(96)
+const chartValueAreaPercent = ref(70)
+const chartProfileWidthPercent = ref(15)
+const chartRange = ref<{ startIndex: number; endIndex: number } | null>(null)
+const chartInitialRange = ref<{ startIndex: number; endIndex: number } | null>(null)
+let profileReqSeq = 0
 const backTestDialogVisible = ref(false)
 const backTestDateDialogVisible = ref(false)
 
@@ -135,15 +145,94 @@ async function syncDailyInfo() {
 }
 
 const drawKLine = async (stockId: string, stockName?: string) => {
+  chartStockId.value = stockId
+  klineTitlePrefix.value = stockName ?? ''
+  klineData.value = []
+  volumeProfile.value = null
+  chartRange.value = null
+  chartInitialRange.value = null
+  await loadKLine()
+}
+
+const loadKLine = async () => {
   try {
-    const response = await apiGetKLineDataByStockId(stockId)
-    klineData.value = response.data
-    klineTitlePrefix.value = stockName ?? ''
+    const response = await apiGetKLineDataByStockId(chartStockId.value)
+    klineData.value = response.data || []
     chartVisible.value = true
+    if (klineData.value.length) {
+      chartRange.value = getDefaultRange()
+      chartInitialRange.value = chartRange.value
+      await loadVolumeProfile()
+    }
   } catch (error) {
-    console.error('获取数据失败:', error)
+    console.error('获取K线数据失败:', error)
   }
 }
+
+// 默认展示近 3 个月：起点为第一条 date >= 3 个月前日期的 K 线，终点为最后一条
+const getDefaultRange = () => {
+  const len = klineData.value.length
+  if (len === 0) return null
+  const endIndex = len - 1
+  const threshold = dayjs().subtract(3, 'month').format('YYYY-MM-DD')
+  let startIndex = 0
+  for (let i = 0; i < len; i++) {
+    const d = normalizeDate(klineData.value[i]?.date)
+    if (d && d >= threshold) {
+      startIndex = i
+      break
+    }
+  }
+  return { startIndex, endIndex }
+}
+
+const handleRangeChange = ({ startIndex, endIndex }: { startIndex: number; endIndex: number }) => {
+  const range = chartRange.value
+  if (range && range.startIndex === startIndex && range.endIndex === endIndex) return
+  chartRange.value = { startIndex, endIndex }
+  loadVolumeProfileDebounced()
+}
+
+const loadVolumeProfile = async () => {
+  const range = chartRange.value
+  const len = klineData.value.length
+  if (!range || len === 0 || range.startIndex >= range.endIndex) {
+    volumeProfile.value = null
+    return
+  }
+  const startDate = normalizeDate(klineData.value[range.startIndex]?.date)
+  const endDate = normalizeDate(klineData.value[range.endIndex]?.date)
+  if (!startDate || !endDate) {
+    volumeProfile.value = null
+    return
+  }
+  const seq = ++profileReqSeq
+  try {
+    const response = await apiGetVolumeProfile({
+      stockId: chartStockId.value,
+      startDate,
+      endDate,
+      rowCount: chartRowCount.value,
+      valueAreaPercent: chartValueAreaPercent.value
+    })
+    if (seq !== profileReqSeq) return
+    volumeProfile.value = response.data || null
+  } catch (error) {
+    console.error('获取成交量分布失败:', error)
+    if (seq === profileReqSeq) volumeProfile.value = null
+  }
+}
+
+const loadVolumeProfileDebounced = debounce(loadVolumeProfile, 500)
+
+const onChartOptionChange = () => {
+  loadVolumeProfileDebounced.cancel()
+  loadVolumeProfile()
+}
+
+const formatPrice = (value?: number | null) => (value == null ? '--' : Number(value).toFixed(2))
+
+const formatVolume = (value?: number | null) => (value == null ? '--' : Number(value).toLocaleString())
 
 const normalizeDate = (date?: string) => {
   if (!date) return ''
@@ -514,7 +603,41 @@ const submitAddStock = async () => {
   </div>
 
   <el-dialog v-model="chartVisible" width="95%" align-center destroy-on-close @opened="onDialogOpened">
-    <CandlestickChart ref="chartRef" :data="klineData" :title-prefix="klineTitlePrefix" show-volume />
+    <div v-if="klineData.length" class="kline-chart-toolbar">
+      <el-descriptions v-if="volumeProfile" :column="5" size="small" border class="kline-chart-summary">
+        <el-descriptions-item label="锚定区间">
+          {{ volumeProfile?.anchorStartDate }} ~ {{ volumeProfile?.anchorEndDate }}
+        </el-descriptions-item>
+        <el-descriptions-item label="POC">{{ formatPrice(volumeProfile?.pocPrice) }}</el-descriptions-item>
+        <el-descriptions-item label="VAH">{{ formatPrice(volumeProfile?.valueAreaHigh) }}</el-descriptions-item>
+        <el-descriptions-item label="VAL">{{ formatPrice(volumeProfile?.valueAreaLow) }}</el-descriptions-item>
+        <el-descriptions-item label="总成交量">{{ formatVolume(volumeProfile?.totalVolume) }}</el-descriptions-item>
+      </el-descriptions>
+      <el-space class="kline-chart-controls" :size="8">
+        <span>价格档数</span>
+        <el-select v-model="chartRowCount" size="small" style="width: 100px" @change="onChartOptionChange">
+          <el-option v-for="n in [24, 48, 96]" :key="n" :label="`${n}档`" :value="n" />
+        </el-select>
+        <span>价值区域</span>
+        <el-select v-model="chartValueAreaPercent" size="small" style="width: 100px" @change="onChartOptionChange">
+          <el-option v-for="n in [60, 70, 80]" :key="n" :label="`${n}%`" :value="n" />
+        </el-select>
+        <span>AVP宽度</span>
+        <el-select v-model="chartProfileWidthPercent" size="small" style="width: 100px">
+          <el-option v-for="n in [5, 10, 15, 20]" :key="n" :label="`${n}%`" :value="n" />
+        </el-select>
+      </el-space>
+    </div>
+    <CandlestickChart
+      ref="chartRef"
+      :data="klineData"
+      :volume-profile="volumeProfile"
+      :volume-profile-width-percent="chartProfileWidthPercent"
+      :initial-range="chartInitialRange"
+      :title-prefix="klineTitlePrefix"
+      show-volume
+      @range-change="handleRangeChange"
+    />
   </el-dialog>
 
   <el-dialog v-model="backTestDateDialogVisible" title="选择回测时间" width="460px" draggable>
@@ -594,4 +717,22 @@ const submitAddStock = async () => {
   </el-dialog>
 </template>
 
-<style scoped lang="scss"></style>
+<style scoped lang="scss">
+.kline-chart-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+
+  .kline-chart-summary {
+    flex: 1;
+    min-width: 480px;
+  }
+
+  .kline-chart-controls {
+    flex-shrink: 0;
+  }
+}
+</style>

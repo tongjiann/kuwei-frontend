@@ -7,3 +7,7 @@ export function apiGetKLineDataByStockId(stockId) {
     stockId
   })
 }
+
+export function apiGetVolumeProfile(params) {
+  return api.get(baseUrl + 'volume-profile', params)
+}
