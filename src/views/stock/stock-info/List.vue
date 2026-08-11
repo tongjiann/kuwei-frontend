@@ -678,38 +678,42 @@ const submitAddStock = async () => {
 
   <el-dialog v-model="chartVisible" width="95%" align-center destroy-on-close @opened="onDialogOpened">
     <div v-if="klineData.length" class="kline-chart-toolbar">
-      <el-descriptions v-if="volumeProfile" :column="5" size="small" border class="kline-chart-summary">
-        <el-descriptions-item label="锚定区间">
-          {{ volumeProfile?.anchorStartDate }} ~ {{ volumeProfile?.anchorEndDate }}
-        </el-descriptions-item>
-        <el-descriptions-item label="POC">{{ formatPrice(volumeProfile?.pocPrice) }}</el-descriptions-item>
-        <el-descriptions-item label="VAH">{{ formatPrice(volumeProfile?.valueAreaHigh) }}</el-descriptions-item>
-        <el-descriptions-item label="VAL">{{ formatPrice(volumeProfile?.valueAreaLow) }}</el-descriptions-item>
-        <el-descriptions-item label="总成交量">{{ formatVolume(volumeProfile?.totalVolume) }}</el-descriptions-item>
-      </el-descriptions>
-      <el-space class="kline-chart-controls" :size="8">
-        <span>价格档数</span>
-        <el-select v-model="chartRowCount" size="small" style="width: 100px" @change="onChartOptionChange">
-          <el-option v-for="n in [24, 48, 96]" :key="n" :label="`${n}档`" :value="n" />
-        </el-select>
-        <span>价值区域</span>
-        <el-select v-model="chartValueAreaPercent" size="small" style="width: 100px" @change="onChartOptionChange">
-          <el-option v-for="n in [60, 70, 80]" :key="n" :label="`${n}%`" :value="n" />
-        </el-select>
-        <span>AVP</span>
-        <el-switch v-model="volumeProfileEnabled" @change="onVolumeProfileEnabledChange" />
-        <span>AVP宽度</span>
-        <el-select
-          v-model="chartProfileWidthPercent"
-          size="small"
-          style="width: 100px"
-          :disabled="!volumeProfileEnabled"
-        >
-          <el-option v-for="n in [5, 10, 15, 20]" :key="n" :label="`${n}%`" :value="n" />
-        </el-select>
-        <span>趋势线/价位</span>
-        <el-switch v-model="trendPriceOverlayEnabled" @change="onTrendPriceOverlayChange" />
-      </el-space>
+      <div class="kline-chart-controls">
+        <el-space class="kline-chart-toggle-row" :size="8">
+          <span>趋势线/价位</span>
+          <el-switch v-model="trendPriceOverlayEnabled" @change="onTrendPriceOverlayChange" />
+          <span>AVP</span>
+          <el-switch v-model="volumeProfileEnabled" @change="onVolumeProfileEnabledChange" />
+        </el-space>
+        <el-descriptions v-if="volumeProfile" :column="5" size="small" border class="kline-chart-summary">
+          <el-descriptions-item label="锚定区间">
+            {{ volumeProfile?.anchorStartDate }} ~ {{ volumeProfile?.anchorEndDate }}
+          </el-descriptions-item>
+          <el-descriptions-item label="POC">{{ formatPrice(volumeProfile?.pocPrice) }}</el-descriptions-item>
+          <el-descriptions-item label="VAH">{{ formatPrice(volumeProfile?.valueAreaHigh) }}</el-descriptions-item>
+          <el-descriptions-item label="VAL">{{ formatPrice(volumeProfile?.valueAreaLow) }}</el-descriptions-item>
+          <el-descriptions-item label="总成交量">{{ formatVolume(volumeProfile?.totalVolume) }}</el-descriptions-item>
+        </el-descriptions>
+        <el-space v-if="volumeProfileEnabled" class="kline-chart-option-row" :size="8">
+          <span>价格档数</span>
+          <el-select v-model="chartRowCount" size="small" style="width: 100px" @change="onChartOptionChange">
+            <el-option v-for="n in [24, 48, 96]" :key="n" :label="`${n}档`" :value="n" />
+          </el-select>
+          <span>价值区域</span>
+          <el-select v-model="chartValueAreaPercent" size="small" style="width: 100px" @change="onChartOptionChange">
+            <el-option v-for="n in [60, 70, 80]" :key="n" :label="`${n}%`" :value="n" />
+          </el-select>
+          <span>AVP宽度</span>
+          <el-select
+            v-model="chartProfileWidthPercent"
+            size="small"
+            style="width: 100px"
+            :disabled="!volumeProfileEnabled"
+          >
+            <el-option v-for="n in [5, 10, 15, 20]" :key="n" :label="`${n}%`" :value="n" />
+          </el-select>
+        </el-space>
+      </div>
     </div>
     <CandlestickChart
       ref="chartRef"
@@ -805,19 +809,20 @@ const submitAddStock = async () => {
 <style scoped lang="scss">
 .kline-chart-toolbar {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: stretch;
   gap: 8px;
   margin-bottom: 10px;
 
   .kline-chart-summary {
-    flex: 1;
-    min-width: 480px;
+    width: 100%;
   }
 
   .kline-chart-controls {
-    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
   }
 }
 </style>

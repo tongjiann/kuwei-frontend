@@ -88,6 +88,48 @@ const isValidPrice = value => Number.isFinite(Number(value))
 const formatOverlayPrice = value =>
   Number(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 4, useGrouping: false })
 
+const CLOSE_LEVEL_GAP_RATIO = 0.035
+const LEVEL_LABEL_STAGGER_PX = 18
+const LEVEL_LABEL_X_OFFSET = 8
+const POC_LINE_COLOR = '#7c3aed'
+const POC_LINE_WIDTH = 3
+
+const buildFrequentLevelLabelLayouts = analysis => {
+  const priceLow = Number(analysis?.priceLow)
+  const priceHigh = Number(analysis?.priceHigh)
+  const priceSpan = priceHigh - priceLow
+  const minimumGap = Number.isFinite(priceSpan) && priceSpan > 0 ? priceSpan * CLOSE_LEVEL_GAP_RATIO : 0
+  const layouts = new Map()
+  const sortedLevels = analysis.frequentLevels
+    .map((level, index) => ({ level, index, price: Number(level.price) }))
+    .filter(item => Number.isFinite(item.price))
+    .sort((left, right) => left.price - right.price)
+  let cluster = []
+
+  const flushCluster = () => {
+    if (!cluster.length) return
+    const center = (cluster.length - 1) / 2
+    cluster.forEach((item, position) => {
+      const verticalOffset = Math.round((center - position) * LEVEL_LABEL_STAGGER_PX)
+      layouts.set(item.index, {
+        position: 'end',
+        offset: [LEVEL_LABEL_X_OFFSET, verticalOffset]
+      })
+    })
+    cluster = []
+  }
+
+  sortedLevels.forEach(item => {
+    const previous = cluster[cluster.length - 1]
+    if (previous && item.price - previous.price > minimumGap) {
+      flushCluster()
+    }
+    cluster.push(item)
+  })
+  flushCluster()
+  return layouts
+}
+
 // 价格档最大成交量（横向直方图 x 轴上限）
 const getProfileMaxVolume = profile => {
   let max = 0
@@ -183,10 +225,10 @@ const buildOption = () => {
     // 👇 双 grid（核心）
     grid: hasVolume
       ? [
-          { left: '10%', right: '8%', top: '10%', height: '55%' },
-          { left: '10%', right: '8%', top: '70%', height: '20%' }
+          { left: '10%', right: '18%', top: '10%', height: '55%' },
+          { left: '10%', right: '18%', top: '70%', height: '20%' }
         ]
-      : [{ left: '10%', right: '8%', top: '10%', bottom: '15%' }],
+      : [{ left: '10%', right: '18%', top: '10%', bottom: '15%' }],
 
     // 👇 双 xAxis
     xAxis: hasVolume
@@ -280,10 +322,17 @@ const buildOption = () => {
       }
     }
 
-    // POC / VAH / VAL 虚线
+    // POC 使用醒目实线，VAH / VAL 保持普通虚线
     const markLineData = []
     if (isFinite(vah)) markLineData.push({ yAxis: vah, name: 'VAH' })
-    if (isFinite(poc)) markLineData.push({ yAxis: poc, name: 'POC' })
+    if (isFinite(poc)) {
+      markLineData.push({
+        yAxis: poc,
+        name: 'POC',
+        lineStyle: { color: POC_LINE_COLOR, width: POC_LINE_WIDTH, type: 'solid' },
+        label: { color: POC_LINE_COLOR, fontWeight: 'bold' }
+      })
+    }
     if (isFinite(val)) markLineData.push({ yAxis: val, name: 'VAL' })
     if (markLineData.length) {
       candleSeries.markLine = {
@@ -291,7 +340,9 @@ const buildOption = () => {
         silent: true,
         label: {
           show: true,
-          position: 'insideEndTop',
+          position: 'end',
+          align: 'left',
+          offset: [LEVEL_LABEL_X_OFFSET, 0],
           fontSize: 11,
           formatter: params => `${params.name}: ${Number(params.value).toFixed(2)}`
         },
@@ -406,8 +457,10 @@ const buildOption = () => {
           {
             value: [line.endDate, Number(line.endPrice)],
             label: {
-              show: index === trendPriceAnalysis.trendLines.length - 1,
-              position: line.lineType === 'RISING_TREND' ? 'top' : 'bottom',
+              show: true,
+              position: 'right',
+              align: 'left',
+              offset: [LEVEL_LABEL_X_OFFSET, 0],
               color: style.color,
               fontWeight: 'bold',
               formatter: `${style.name} ${formatOverlayPrice(line.endPrice)}`
@@ -419,12 +472,26 @@ const buildOption = () => {
 
     const levelStartDate = trendPriceAnalysis.anchorStartDate || dates[0]
     const levelEndDate = trendPriceAnalysis.anchorEndDate || dates[dates.length - 1]
+    const frequentLevelLabelLayouts = buildFrequentLevelLabelLayouts(trendPriceAnalysis)
+    const emphasizedLevels = new Set(
+      trendPriceAnalysis.frequentLevels
+        .map((level, index) => ({ level, index }))
+        .filter(({ level }) => isValidPrice(level.price))
+        .sort((left, right) => Number(right.level.touchCount || 0) - Number(left.level.touchCount || 0))
+        .slice(0, 2)
+        .map(({ index }) => index)
+    )
     trendPriceAnalysis.frequentLevels.forEach((level, index) => {
       if (!isValidPrice(level.price)) return
+      const emphasized = emphasizedLevels.has(index)
       const support = level.levelType === 'SUPPORT'
       const color = support ? '#16a34a' : '#dc2626'
       const levelName = support ? '支撑' : '阻力'
       const label = `${levelName} ${formatOverlayPrice(level.price)} · ${Number(level.touchCount) || 0}次`
+      const labelLayout = frequentLevelLabelLayouts.get(index) || {
+        position: 'end',
+        offset: [LEVEL_LABEL_X_OFFSET, 0]
+      }
       option.series.push({
         name: label,
         type: 'line',
@@ -439,10 +506,12 @@ const buildOption = () => {
         markLine: {
           symbol: 'none',
           silent: true,
-          lineStyle: { color, type: 'dashed', width: 1.5 },
+          lineStyle: { color, type: 'dashed', width: emphasized ? 3 : 1.5 },
           label: {
             show: true,
-            position: 'insideEndTop',
+            position: labelLayout.position,
+            align: 'left',
+            offset: labelLayout.offset,
             color,
             fontWeight: 'bold',
             formatter: label
