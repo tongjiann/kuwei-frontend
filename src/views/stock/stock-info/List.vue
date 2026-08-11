@@ -1,11 +1,11 @@
 <script setup lang="ts" name="StockInfo">
 import { Plus, Edit, Search, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import type { StockInfo } from './type'
-import type { StockDailyInfo, VolumeProfile } from '#/stock/stock-daily-info'
+import type { StockDailyInfo, TrendPriceLevel, VolumeProfile } from '#/stock/stock-daily-info'
 import Detail from '@/views/stock/stock-info/Detail.vue'
 import Form from '@/views/stock/stock-info/Form.vue'
 import { apiMultiTest, apiSyncDailyInfo, apiInitStockInfo, apiGetSimpleStockInfo } from '@/api/stock/stock-common'
-import { apiGetKLineDataByStockId, apiGetVolumeProfile } from '@/api/stock/stock-daily-info'
+import { apiGetKLineDataByStockId, apiGetTrendPriceLevels, apiGetVolumeProfile } from '@/api/stock/stock-daily-info'
 
 import { checkPermission } from '@/utils/permission'
 import dayjs from 'dayjs'
@@ -20,13 +20,17 @@ const backTestResultList = ref([])
 const klineTitlePrefix = ref('')
 const chartVisible = ref(false)
 const volumeProfile = ref<VolumeProfile | null>(null)
+const trendPriceLevels = ref<TrendPriceLevel | null>(null)
+const trendPriceOverlayEnabled = ref(false)
 const chartStockId = ref('')
 const chartRowCount = ref(96)
 const chartValueAreaPercent = ref(70)
 const chartProfileWidthPercent = ref(15)
+const volumeProfileEnabled = ref(true)
 const chartRange = ref<{ startIndex: number; endIndex: number } | null>(null)
 const chartInitialRange = ref<{ startIndex: number; endIndex: number } | null>(null)
 let profileReqSeq = 0
+let trendPriceReqSeq = 0
 const backTestDialogVisible = ref(false)
 const backTestDateDialogVisible = ref(false)
 
@@ -149,6 +153,11 @@ const drawKLine = async (stockId: string, stockName?: string) => {
   klineTitlePrefix.value = stockName ?? ''
   klineData.value = []
   volumeProfile.value = null
+  volumeProfileEnabled.value = true
+  trendPriceLevels.value = null
+  trendPriceOverlayEnabled.value = false
+  loadTrendPriceLevelsDebounced.cancel()
+  trendPriceReqSeq += 1
   chartRange.value = null
   chartInitialRange.value = null
   await loadKLine()
@@ -191,9 +200,14 @@ const handleRangeChange = ({ startIndex, endIndex }: { startIndex: number; endIn
   if (range && range.startIndex === startIndex && range.endIndex === endIndex) return
   chartRange.value = { startIndex, endIndex }
   loadVolumeProfileDebounced()
+  if (trendPriceOverlayEnabled.value) loadTrendPriceLevelsDebounced()
 }
 
 const loadVolumeProfile = async () => {
+  if (!volumeProfileEnabled.value) {
+    volumeProfile.value = null
+    return
+  }
   const range = chartRange.value
   const len = klineData.value.length
   if (!range || len === 0 || range.startIndex >= range.endIndex) {
@@ -225,9 +239,69 @@ const loadVolumeProfile = async () => {
 
 const loadVolumeProfileDebounced = debounce(loadVolumeProfile, 500)
 
+const loadTrendPriceLevels = async () => {
+  if (!trendPriceOverlayEnabled.value) {
+    trendPriceLevels.value = null
+    return
+  }
+
+  const range = chartRange.value
+  const len = klineData.value.length
+  if (!range || len === 0 || range.startIndex > range.endIndex) {
+    trendPriceLevels.value = null
+    return
+  }
+
+  const startDate = normalizeDate(klineData.value[range.startIndex]?.date)
+  const endDate = normalizeDate(klineData.value[range.endIndex]?.date)
+  if (!startDate || !endDate) {
+    trendPriceLevels.value = null
+    return
+  }
+
+  const seq = ++trendPriceReqSeq
+  try {
+    const response = await apiGetTrendPriceLevels({
+      stockId: chartStockId.value,
+      startDate,
+      endDate,
+      rowCount: chartRowCount.value
+    })
+    if (seq !== trendPriceReqSeq || !trendPriceOverlayEnabled.value) return
+    trendPriceLevels.value = response.data || null
+  } catch (error) {
+    console.error('获取趋势线与频繁价位失败:', error)
+    if (seq === trendPriceReqSeq) trendPriceLevels.value = null
+  }
+}
+
+const loadTrendPriceLevelsDebounced = debounce(loadTrendPriceLevels, 500)
+
+const onTrendPriceOverlayChange = (enabled: boolean) => {
+  loadTrendPriceLevelsDebounced.cancel()
+  trendPriceReqSeq += 1
+  if (enabled) {
+    loadTrendPriceLevels()
+    return
+  }
+  trendPriceLevels.value = null
+}
+
+const onVolumeProfileEnabledChange = (enabled: boolean) => {
+  loadVolumeProfileDebounced.cancel()
+  profileReqSeq += 1
+  if (enabled) {
+    loadVolumeProfile()
+    return
+  }
+  volumeProfile.value = null
+}
+
 const onChartOptionChange = () => {
   loadVolumeProfileDebounced.cancel()
   loadVolumeProfile()
+  loadTrendPriceLevelsDebounced.cancel()
+  if (trendPriceOverlayEnabled.value) loadTrendPriceLevels()
 }
 
 const formatPrice = (value?: number | null) => (value == null ? '--' : Number(value).toFixed(2))
@@ -622,16 +696,27 @@ const submitAddStock = async () => {
         <el-select v-model="chartValueAreaPercent" size="small" style="width: 100px" @change="onChartOptionChange">
           <el-option v-for="n in [60, 70, 80]" :key="n" :label="`${n}%`" :value="n" />
         </el-select>
+        <span>AVP</span>
+        <el-switch v-model="volumeProfileEnabled" @change="onVolumeProfileEnabledChange" />
         <span>AVP宽度</span>
-        <el-select v-model="chartProfileWidthPercent" size="small" style="width: 100px">
+        <el-select
+          v-model="chartProfileWidthPercent"
+          size="small"
+          style="width: 100px"
+          :disabled="!volumeProfileEnabled"
+        >
           <el-option v-for="n in [5, 10, 15, 20]" :key="n" :label="`${n}%`" :value="n" />
         </el-select>
+        <span>趋势线/价位</span>
+        <el-switch v-model="trendPriceOverlayEnabled" @change="onTrendPriceOverlayChange" />
       </el-space>
     </div>
     <CandlestickChart
       ref="chartRef"
       :data="klineData"
       :volume-profile="volumeProfile"
+      :trend-price-levels="trendPriceLevels"
+      :trend-price-overlay-enabled="trendPriceOverlayEnabled"
       :volume-profile-width-percent="chartProfileWidthPercent"
       :initial-range="chartInitialRange"
       :title-prefix="klineTitlePrefix"

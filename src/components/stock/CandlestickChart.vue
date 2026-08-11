@@ -22,6 +22,14 @@ const props = defineProps({
     type: Object,
     default: null
   },
+  trendPriceLevels: {
+    type: Object,
+    default: null
+  },
+  trendPriceOverlayEnabled: {
+    type: Boolean,
+    default: false
+  },
   volumeProfileWidthPercent: {
     type: Number,
     default: 15
@@ -65,6 +73,21 @@ const getProfile = () => {
   return p
 }
 
+const getTrendPriceLevels = () => {
+  const analysis = props.trendPriceLevels
+  if (!analysis) return null
+  return {
+    ...analysis,
+    trendLines: Array.isArray(analysis.trendLines) ? analysis.trendLines : [],
+    frequentLevels: Array.isArray(analysis.frequentLevels) ? analysis.frequentLevels : []
+  }
+}
+
+const isValidPrice = value => Number.isFinite(Number(value))
+
+const formatOverlayPrice = value =>
+  Number(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 4, useGrouping: false })
+
 // 价格档最大成交量（横向直方图 x 轴上限）
 const getProfileMaxVolume = profile => {
   let max = 0
@@ -94,11 +117,17 @@ const buildOption = () => {
   const hasVolume = props.showVolume
   const profile = getProfile()
   const hasProfile = !!profile
+  const trendPriceAnalysis = getTrendPriceLevels()
+  const hasTrendPriceAnalysis = props.trendPriceOverlayEnabled
   const zoom = getZoomState()
 
   const option = {
     title: {
-      text: props.titlePrefix + (hasVolume ? ' K线图（带成交量）' : ' K线图') + (hasProfile ? ' · 成交量分布' : ''),
+      text:
+        props.titlePrefix +
+        (hasVolume ? ' K线图（带成交量）' : ' K线图') +
+        (hasProfile ? ' · 成交量分布' : '') +
+        (hasTrendPriceAnalysis ? ' · 趋势线/价位' : ''),
       left: 'center'
     },
 
@@ -341,6 +370,89 @@ const buildOption = () => {
     })
   }
 
+  if (trendPriceAnalysis) {
+    const trendStyles = {
+      RISING_TREND: { name: '上涨趋势', color: '#2563eb' },
+      FALLING_TREND: { name: '下跌趋势', color: '#f97316' }
+    }
+    trendPriceAnalysis.trendLines.forEach((line, index) => {
+      const style = trendStyles[line.lineType]
+      if (
+        !style ||
+        !line.startDate ||
+        !line.endDate ||
+        !isValidPrice(line.startPrice) ||
+        !isValidPrice(line.endPrice)
+      ) {
+        return
+      }
+
+      option.series.push({
+        name: style.name,
+        type: 'line',
+        xAxisIndex: 0,
+        yAxisIndex: 0,
+        silent: true,
+        animation: false,
+        showSymbol: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        lineStyle: { color: style.color, width: 3 },
+        itemStyle: { color: style.color },
+        tooltip: { show: false },
+        z: 12 + index,
+        data: [
+          { value: [line.startDate, Number(line.startPrice)] },
+          {
+            value: [line.endDate, Number(line.endPrice)],
+            label: {
+              show: index === trendPriceAnalysis.trendLines.length - 1,
+              position: line.lineType === 'RISING_TREND' ? 'top' : 'bottom',
+              color: style.color,
+              fontWeight: 'bold',
+              formatter: `${style.name} ${formatOverlayPrice(line.endPrice)}`
+            }
+          }
+        ]
+      })
+    })
+
+    const levelStartDate = trendPriceAnalysis.anchorStartDate || dates[0]
+    const levelEndDate = trendPriceAnalysis.anchorEndDate || dates[dates.length - 1]
+    trendPriceAnalysis.frequentLevels.forEach((level, index) => {
+      if (!isValidPrice(level.price)) return
+      const support = level.levelType === 'SUPPORT'
+      const color = support ? '#16a34a' : '#dc2626'
+      const levelName = support ? '支撑' : '阻力'
+      const label = `${levelName} ${formatOverlayPrice(level.price)} · ${Number(level.touchCount) || 0}次`
+      option.series.push({
+        name: label,
+        type: 'line',
+        xAxisIndex: 0,
+        yAxisIndex: 0,
+        silent: true,
+        animation: false,
+        showSymbol: false,
+        data: dates.map(() => null),
+        tooltip: { show: false },
+        z: 8 + index,
+        markLine: {
+          symbol: 'none',
+          silent: true,
+          lineStyle: { color, type: 'dashed', width: 1.5 },
+          label: {
+            show: true,
+            position: 'insideEndTop',
+            color,
+            fontWeight: 'bold',
+            formatter: label
+          },
+          data: [[{ coord: [levelStartDate, Number(level.price)] }, { coord: [levelEndDate, Number(level.price)] }]]
+        }
+      })
+    })
+  }
+
   // 👇 成交量（独立区域）
   if (hasVolume) {
     option.series.push({
@@ -431,6 +543,17 @@ watch(
 // 监听成交量分布变化
 watch(
   () => props.volumeProfile,
+  () => {
+    if (chartInstance) {
+      chartInstance.setOption(buildOption(), true)
+    }
+  },
+  { deep: true }
+)
+
+// 监听趋势线与频繁价位变化
+watch(
+  () => [props.trendPriceLevels, props.trendPriceOverlayEnabled],
   () => {
     if (chartInstance) {
       chartInstance.setOption(buildOption(), true)

@@ -11,3 +11,7 @@ export function apiGetKLineDataByStockId(stockId) {
 export function apiGetVolumeProfile(params) {
   return api.get(baseUrl + 'volume-profile', params)
 }
+
+export function apiGetTrendPriceLevels(params) {
+  return api.get(baseUrl + 'trend-price-levels', params)
+}

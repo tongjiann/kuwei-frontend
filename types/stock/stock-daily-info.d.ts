@@ -83,3 +83,47 @@ export interface VolumeProfile {
   // 价格档分布
   levels?: VolumeProfileLevel[]
 }
+
+/**
+ * K线趋势线
+ */
+export interface TrendLine {
+  // 趋势段类型：RISING_TREND、FALLING_TREND
+  lineType?: string
+  // 起点摆动锚点
+  startDate?: string
+  startPrice?: number
+  // 终点摆动锚点
+  endDate?: string
+  endPrice?: number
+}
+
+/**
+ * 高频触碰价位
+ */
+export interface FrequentPriceLevel {
+  // 价位类型：SUPPORT、RESISTANCE
+  levelType?: string
+  // 合并后的价格区间和代表价格
+  priceFrom?: number
+  priceTo?: number
+  price?: number
+  // 触碰次数与最近触碰日期
+  touchCount?: number
+  firstTouchDate?: string
+  lastTouchDate?: string
+}
+
+/**
+ * 趋势线与频繁价位分析结果
+ */
+export interface TrendPriceLevel {
+  // 分析区间
+  anchorStartDate?: string
+  anchorEndDate?: string
+  priceLow?: number
+  priceHigh?: number
+  latestClosePrice?: number
+  trendLines?: TrendLine[]
+  frequentLevels?: FrequentPriceLevel[]
+}
